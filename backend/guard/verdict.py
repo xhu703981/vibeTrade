@@ -22,6 +22,7 @@ class Verdict:
     reasons: list[str] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
     jev_risk: float | None = None
+    guard_run_id: str | None = None
 
     def as_dict(self) -> dict:
         return {"decision": self.decision, "reasons": self.reasons, "jev_risk": self.jev_risk,
@@ -31,10 +32,13 @@ class Verdict:
 async def decide(sim: SimResult, intent: TradeIntent, quote: dict | None = None, jev: AsksJEV | None = None) -> Verdict:
     findings = evaluate(sim, intent, quote)
     blocks = [f for f in findings if f.severity == BLOCK]
+    from backend.guard import evidence
     if blocks:
+        evidence.observe(evidence.not_asked, "blocked by rules")
         return Verdict(BLOCK, [f.message for f in blocks], findings)
     asks = [f.message for f in findings]
     if jev is None:
+        evidence.observe(evidence.not_asked, "not configured")
         return Verdict(ASK_HUMAN if asks else ALLOW, asks, findings)
     try:
         p, why = await semantic_check(jev, sim, intent)

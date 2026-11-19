@@ -376,6 +376,37 @@ def _engine():
     return e
 
 
+@app.get("/guard-runs/{guard_run_id}/guard_view")
+async def guard_run_view(guard_run_id: str) -> dict:
+    """Read-only immutable capture. Never builds, profiles, judges, pays for or sends a transaction."""
+    from backend.guard.evidence import get
+    record = get(guard_run_id)
+    if record is None:
+        raise HTTPException(404, "Guard evidence unavailable: legacy run, expired capture, or backend restarted")
+    return record
+
+
+@app.get("/cards/{code}/guard_view")
+async def card_guard_view(code: str, card_id: str | None = None, guard_run_id: str | None = None) -> dict:
+    """A code is not an identity: recycled codes require a card id. Never follows replaced_by."""
+    e = app.state.engine or app.state.orch.engine
+    cards = [c for c in e.cards.values() if c.code == code and (card_id is None or c.id == card_id)] if e else []
+    if not cards:
+        raise HTTPException(404, "Guard evidence unavailable for this card")
+    if len(cards) != 1:
+        raise HTTPException(409, "Ambiguous card code: specify card_id")
+    c = cards[0]
+    run_id = c.guard.get("guard_run_id")
+    if guard_run_id is not None and guard_run_id != run_id:
+        raise HTTPException(409, "Guard run does not match this approval card")
+    if not run_id:
+        raise HTTPException(404, "Guard evidence unavailable: legacy card")
+    record = await guard_run_view(run_id)
+    if record.get("card_id") != c.id or record.get("card_code") != c.code or record.get("stage") != "approval":
+        raise HTTPException(409, "Guard evidence provenance does not match this approval card")
+    return {**record, "card_status": c.status, "replaced": bool(c.replaced_by)}
+
+
 @app.post("/cards/{card_id}/respond")
 async def card_respond(card_id: str, body: CardRespondIn) -> dict:
     e = _engine()

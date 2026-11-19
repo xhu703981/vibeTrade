@@ -1,3 +1,4 @@
+import { GuardDetails } from "./GuardDetails";
 // The contents of each contextual drawer. Short plain wording; numbers come from the backend as they are.
 import { useState } from "react";
 import type { Api } from "../api";
@@ -165,6 +166,7 @@ export function OrderSheet(props: { cards: Card[]; buttons: boolean; onApprove: 
             {c.cap_note && <p className="order-note">{c.cap_note[0].toUpperCase() + c.cap_note.slice(1)}.</p>}
             {c.warning && <p className="pick-worry pr-warn"><i aria-hidden />{c.warning}</p>}
             {g !== "allow" && c.guard.reasons.length > 0 && <ul className="order-reasons">{c.guard.reasons.slice(0, 3).map((r, i) => <li key={i}>{r}</li>)}</ul>}
+            <GuardDetails key={`${c.id}:${c.guard.guard_run_id ?? "legacy"}`} runId={c.guard.guard_run_id} cardId={c.id} code={c.code} />
             <p className="say-it">Say “approve {c.code}” or “reject {c.code}”.</p>
             <div className="order-actions">
               <button className="ghost-btn" onClick={() => props.onReject(c)}>Reject</button>
@@ -226,18 +228,11 @@ export function guardSentence(e: BackendEvent): string {
 export function GuardSheet(props: { event: BackendEvent }) {
   const e = props.event;
   const flow = e.panel?.flow;
-  const reasons: string[] = Array.isArray(e.panel?.reasons) ? e.panel.reasons : [];
-  const [why, setWhy] = useState(false);
   return (
     <div className="guard">
       <p className="guard-what"><span className="verdict down">Blocked:</span> {guardSentence(e)}</p>
       {flow && <FlowCompare flow={flow} />}
-      {reasons.length > 0 && (
-        <>
-          <button className="text-btn" onClick={() => setWhy(!why)} aria-expanded={why}>{why ? "Hide the checks" : "Show what the checks found"}</button>
-          {why && <ul className="order-reasons">{reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>}
-        </>
-      )}
+      <GuardDetails key={e.panel?.guard_run_id ?? `legacy-${e.id}`} runId={e.panel?.guard_run_id} />
     </div>
   );
 }

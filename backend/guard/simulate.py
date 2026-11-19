@@ -297,6 +297,8 @@ async def simulate(rpc, raw: bytes, wallet: str, refresh: list[str] | None = Non
     """Full flow: fetch ALTs -> decode -> (optionally) refresh pool accounts -> profile -> summarise."""
     tables = await fetch_alt_tables(rpc, alt_addresses_of(raw))
     tx = decode_transaction(raw, tables)
+    from backend.guard import evidence
+    evidence.observe(evidence.decoded, raw, tx)
     if refresh:
         await refresh_accounts(rpc, refresh)
     res = await rpc.call("surfnet_profileTransaction", [base64.b64encode(raw).decode(), None, {"encoding": "base64"}])

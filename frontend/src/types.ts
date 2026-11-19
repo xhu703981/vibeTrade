@@ -18,7 +18,7 @@ export type Card = {
   expected_out: number;
   metrics: Record<string, number>;
   sim: { token_out: number | null; usdc_in: number | null; sol_change_lamports: number | null; price_impact_pct: number };
-  guard: { decision: "allow" | "ask_human" | "block"; reasons: string[]; jev_risk: number | null };
+  guard: { decision: "allow" | "ask_human" | "block"; reasons: string[]; jev_risk: number | null; guard_run_id?: string | null };
   created_at: number;
   expires_at: number;
   status: string;

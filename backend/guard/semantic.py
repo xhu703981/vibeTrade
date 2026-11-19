@@ -92,6 +92,14 @@ QUESTION = {
 
 async def semantic_check(jev: AsksJEV, sim: SimResult, intent: TradeIntent) -> tuple[float, str]:
     """Return (P(risk), note). P(risk) = 1 - P(safe)."""
-    p_safe = await jev.ask(build_state(sim, intent), "is_safe", QUESTION)
+    from backend.guard import evidence
+    state = build_state(sim, intent)
+    evidence.observe(evidence.sent, state, QUESTION, RISK_THRESHOLD)
+    try:
+        p_safe = await jev.ask(state, "is_safe", QUESTION)
+    except Exception as exc:
+        evidence.observe(evidence.error, "jev", exc)
+        raise
     risk = 1.0 - p_safe
+    evidence.observe(evidence.risk, risk)
     return risk, f"JEV risk probability {risk:.2f}"

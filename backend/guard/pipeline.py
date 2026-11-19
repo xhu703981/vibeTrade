@@ -41,9 +41,24 @@ async def check_transaction(rpc, raw: bytes, intent: TradeIntent, quote: dict | 
     With refresh_pools=True the route's pools are first resetAccount'ed (refreshed to the latest mainnet state).
     Note: in fork mode M5 moves prices with a whale wallet; do not refresh then, or the fork's price changes are wiped.
     """
+    from backend.guard import evidence
+    handle = evidence.observe(evidence.begin, raw)
     try:
-        refresh = await pool_accounts_to_refresh(rpc, raw, intent.wallet) if refresh_pools else None
-        sim = await simulate(rpc, raw, intent.wallet, refresh)
-    except Exception as e:  # noqa: BLE001
-        return Verdict("block", [f"could not simulate or decode the transaction: {type(e).__name__}: {str(e)[:160]}"]), None
-    return await decide(sim, intent, quote, jev), sim
+        try:
+            refresh = await pool_accounts_to_refresh(rpc, raw, intent.wallet) if refresh_pools else None
+            sim = await simulate(rpc, raw, intent.wallet, refresh)
+        except Exception as e:  # noqa: BLE001
+            evidence.observe(evidence.error, "decode_or_profile", e)
+            evidence.observe(evidence.not_asked, "decode or simulation unavailable")
+            v = Verdict("block", [f"could not simulate or decode the transaction: {type(e).__name__}: {str(e)[:160]}"])
+            v.guard_run_id = evidence.observe(evidence.finish, handle, v)
+            handle = None
+            return v, None
+        evidence.observe(evidence.simulation, sim, intent)
+        v = await decide(sim, intent, quote, jev)
+        v.guard_run_id = evidence.observe(evidence.finish, handle, v)
+        handle = None
+        return v, sim
+    finally:
+        if handle is not None:
+            evidence.observe(evidence.abandon, handle)

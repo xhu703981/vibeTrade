@@ -19,6 +19,7 @@ from backend.execute.failure_speak import (
 from backend.execute.listener import Listener, Position, fork_clock, money_words
 from backend.execute.price_source import ForkPriceSource
 from backend.guard.pipeline import check_transaction
+from backend.guard import evidence as guard_evidence
 from backend.solana_utils import Rpc, load_or_create_keypair, sync_fork_clock, token_balance
 from backend.trade.builder import IntentError, build_buy_intent
 from backend.trade.jupiter import JupiterError, assemble_v0, build_instructions, build_swap, fetch_alts
@@ -180,7 +181,8 @@ class TradingEngine:
             except Exception:  # noqa: BLE001 - the explanation is best effort; the block itself already happened
                 flow = None
             self.bus.emit("guard_blocked", blocked_buy_speak(None, coin_number, v.reasons[:5], created=False),
-                          {"mint": mint, "side": "buy", "reasons": v.reasons[:5], "coin_number": coin_number, "flow": flow}, loud=True)
+                          {"mint": mint, "side": "buy", "reasons": v.reasons[:5], "coin_number": coin_number, "flow": flow,
+                           "guard_run_id": getattr(v, "guard_run_id", None)}, loud=True)
             return None
         now = time.time()
         c = Card(id=new_card_id(), code=self.codes.new(), mint=mint, symbol_display=sanitize_symbol(symbol),
@@ -189,7 +191,8 @@ class TradingEngine:
                       "usdc_in": -(sim.token_deltas.get(USDC_MINT, 0)) if sim else None,
                       "sol_change_lamports": sim.sol_delta if sim else None,
                       "price_impact_pct": round(float(b.get("priceImpactPct") or 0) * 100, 3)},
-                 guard={"decision": v.decision, "reasons": v.reasons[:5], "jev_risk": v.jev_risk},
+                 guard={"decision": v.decision, "reasons": v.reasons[:5], "jev_risk": v.jev_risk,
+                        "guard_run_id": getattr(v, "guard_run_id", None)},
                  created_at=now, expires_at=now + self.m.body.exec.approval_timeout_sec,
                  coin_number=coin_number if coin_number is not None else (replaces.coin_number if replaces else None),
                  mandate_id=self.m.mandate_id)
@@ -206,6 +209,7 @@ class TradingEngine:
                                                               self.m.body.exec.max_slippage_bps.stop_loss_sell)
         c.history.append({"ts": now, "event": "created"})
         self.cards[c.id] = c
+        guard_evidence.observe(guard_evidence.bind, c.guard.get("guard_run_id"), c.id, c.code, "approval")
         self._pool[mint] = pool
         pre = f"The price moved, so card {replaces.code} is void. " if replaces else ""
         self.bus.emit("card_created", "" if not announce else
@@ -329,6 +333,7 @@ class TradingEngine:
             self.bus.emit("trade_failed", trade_failed_speak(c.code, c.coin_number, why, stage="requote"),
                           {"card_id": c.id, "stage": "requote", "error": type(ex).__name__, "coin_number": c.coin_number}, loud=True)
             return {"ok": False, "status": c.status, "reason": "re-quote failed"}
+        guard_evidence.observe(guard_evidence.bind, getattr(v, "guard_run_id", None), c.id, c.code, "approval_recheck")
         card_rate = c.expected_out / c.amount_usdc
         new_rate = int(b["outAmount"]) / amount
         dev = abs(new_rate / card_rate - 1) * 100
@@ -346,7 +351,8 @@ class TradingEngine:
                           blocked_buy_speak(c.code, c.coin_number, v.reasons[:5],
                                             resim_block=v.decision == "block",
                                             new_concern=v.decision != "block"),
-                          {"card_id": c.id, "side": "buy", "reasons": v.reasons[:5], "coin_number": c.coin_number},
+                          {"card_id": c.id, "side": "buy", "reasons": v.reasons[:5], "coin_number": c.coin_number,
+                           "guard_run_id": getattr(v, "guard_run_id", None)},
                           loud=True)
             return {"ok": False, "status": c.status, "reasons": v.reasons}
         usdc0 = await token_balance(self.rpc, self.wallet, USDC_MINT)

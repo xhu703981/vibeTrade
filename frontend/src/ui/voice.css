@@ -238,3 +238,24 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
   .sheet-head { padding: var(--s4) var(--s2) var(--s2) var(--s5); }
   .vt.has-sheet .stage-v, .vt.has-sheet .dock { padding-right: calc(var(--side-w) + var(--s5)); }
 }
+
+/* Guard evidence: six plain sections, no nested cards. Captured values only; scroll within the sheet. */
+.guard-details { margin-top: var(--s3); }
+.guard-evidence { min-width: 0; }
+.guard-step { border-top: 1px solid var(--rule); padding: var(--s4) 0; }
+.guard-step h3 { font-size: var(--t-md); font-weight: 500; margin: 0 0 var(--s3); }
+.guard-step p { margin: var(--s2) 0; overflow-wrap: anywhere; }
+.guard-step pre { font: var(--t-xs)/var(--lh-text) monospace; white-space: pre-wrap; overflow-wrap: anywhere;
+  margin: var(--s2) 0; padding: 0; color: var(--slate); max-height: calc(var(--s6) * 12); overflow-y: auto; }
+.guard-ix, .guard-rules { list-style: none; padding: 0; margin: 0; font-size: var(--t-sm); }
+.guard-ix li, .guard-rules li { display: flex; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--rule); }
+.guard-ix li > :first-child, .guard-rules li > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.guard-ix li > :last-child, .guard-rules li > :last-child { flex: none; }
+.guard-balances { margin: 0; }
+.guard-balances > div { padding: var(--s2) 0; border-bottom: 1px solid var(--rule); }
+.guard-balances dd { margin: var(--s1) 0 0; overflow-wrap: anywhere; }
+.guard-risk { position: relative; height: var(--s2); background: var(--rule); margin-top: var(--s3); }
+.guard-risk-fill { display: block; height: 100%; background: var(--amber); }
+.guard-risk-mark { position: absolute; top: calc(var(--s1) * -1); bottom: calc(var(--s1) * -1); border-left: 1px solid var(--chalk); }
+.guard-risk-labels { display: flex; justify-content: space-between; margin-top: var(--s2); }
+.guard-final { font-size: var(--t-lg); }
