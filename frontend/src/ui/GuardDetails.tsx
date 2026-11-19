@@ -7,6 +7,7 @@ export type GuardView = {
   tx_bytes_len: number | null;
   tx_base64_prefix: string | null;
   card_id?: string;
+  card_code?: string;
   verdict: string | null;
   decoded: { index: number; program: string; instruction: string; allowed: boolean | null }[] | null;
   lookup_tables: { tables: number; accounts_resolved: number } | null;
@@ -28,12 +29,12 @@ const delta = (v: number | null) => v == null ? "Unavailable" : `${v > 0 ? "+" :
 
 /** Fetches a frozen capture only when expanded. GET cannot simulate, trade, research or call JEV.
  *  Keys and provenance checks prevent recycled codes/replacement cards displaying a different transaction's evidence. */
-export function GuardDetails(props: { api?: Api; runId?: string | null; cardId?: string; code?: string }) {
-  const [open, setOpen] = useState(false);
+export function GuardDetails(props: { api?: Api; runId?: string | null; cardId?: string; code?: string; expanded?: boolean }) {
+  const [open, setOpen] = useState(!!props.expanded);
   const [data, setData] = useState<GuardView | null>(null);
   const [failed, setFailed] = useState(false);
   const key = `${props.runId ?? "legacy"}:${props.cardId ?? ""}:${props.code ?? ""}`;
-  useEffect(() => { setOpen(false); setData(null); setFailed(false); }, [key]);
+  useEffect(() => { setOpen(!!props.expanded); setData(null); setFailed(false); }, [key, props.expanded]);
   useEffect(() => {
     if (!open || !props.runId) return;
     let active = true;
@@ -49,7 +50,7 @@ export function GuardDetails(props: { api?: Api; runId?: string | null; cardId?:
     return () => { active = false; };
   }, [open, key, props.api]);
   const current = data?.guard_run_id === props.runId && (!props.cardId || data?.card_id === props.cardId) ? data : null;
-  return <div className="guard-details">
+  return <div className="guard-details" role="group" aria-label={props.code ? `Guard checks for Card ${props.code}` : `Guard checks for run ${props.runId ?? "unavailable"}`}>
     <button type="button" className="text-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
       {open ? "Hide the checks" : "Show what the checks found"}
     </button>
@@ -66,6 +67,7 @@ export function Evidence({ view: v }: { view: GuardView }) {
   const risk = v.jev.risk;
   const validRisk = typeof risk === "number" && Number.isFinite(risk) && risk >= 0 && risk <= 1;
   return <>
+    <p className="small soft">{v.card_code && /^\d{2}$/.test(v.card_code) ? `Card ${v.card_code} · ` : ""}Run {v.guard_run_id}</p>
     <p className="small soft">Recorded for this transaction, not rerun. {v.replaced ? "This card was replaced; this is its original capture." : ""}</p>
     <section className="guard-step">
       <h3>1. Transaction bytes</h3>
@@ -86,6 +88,7 @@ export function Evidence({ view: v }: { view: GuardView }) {
       <h3>3. Simulated balances</h3>
       {!v.simulation ? <p>Profile unavailable.</p> : <>
         <p className="small soft">surfnet_profileTransaction · profiled wallet accounts, not total portfolio</p>
+        <p className="small soft">Raw amounts: USDC and target token in base units; SOL in lamports. Not decimal token balances.</p>
         {v.simulation.error && <p className="down">Simulation failed; these are the recorded effects, not a completed trade.</p>}
         <dl className="guard-balances">{v.simulation.balances.map((b) => <div key={b.asset}>
           <dt>{b.asset} <span className="soft small">{b.unit}</span></dt>

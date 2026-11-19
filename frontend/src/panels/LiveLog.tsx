@@ -1,4 +1,5 @@
 import type { AppState, BackendEvent } from "../types";
+import { GuardDetails } from "../ui/GuardDetails";
 import { DECISION_LABEL, short, usdF } from "./format";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -37,10 +38,11 @@ export function LiveLog(props: { events: BackendEvent[]; state: AppState | null 
         <h4>Simulation results</h4>
         <ul>
           {sims.map((c) => (
-            <li key={c.id}>
+            <li key={c.id} aria-label={`Card ${c.code} simulation`}>
               Card {c.code}: {usdF(c.amount_usdc)} buys {c.sim.token_out?.toLocaleString() ?? "\u2013"} tokens, price impact {c.sim.price_impact_pct.toFixed(2)}%,
               SOL {c.sim.sol_change_lamports != null ? (c.sim.sol_change_lamports / 1e9).toFixed(5) : "\u2013"}. Guard: {DECISION_LABEL[c.guard.decision] ?? c.guard.decision}
               {c.guard.jev_risk != null ? ` (JEV ${c.guard.jev_risk.toFixed(2)})` : ""}.
+              <GuardDetails key={`${c.id}:${c.guard.guard_run_id ?? "legacy"}`} runId={c.guard.guard_run_id} cardId={c.id} code={c.code} />
             </li>
           ))}
           {!sims.length && <li className="hint">No simulations yet. Each card is simulated before you see it.</li>}
@@ -50,9 +52,10 @@ export function LiveLog(props: { events: BackendEvent[]; state: AppState | null 
         <h4>Events</h4>
         <ul className="events">
           {log.map((e) => (
-            <li key={e.id} className={e.loud ? "loud" : ""}>
+            <li key={e.id} className={e.loud ? "loud" : ""} aria-label={`${TYPE_LABEL[e.type] ?? e.type} event ${e.id}`}>
               <time>{new Date(e.ts * 1000).toLocaleTimeString()}</time> <b>{TYPE_LABEL[e.type] ?? e.type}</b> {e.speak}
               {e.panel?.signature && <code> {short(e.panel.signature, 8)}</code>}
+              {e.type === "guard_blocked" && <GuardDetails key={e.panel?.guard_run_id ?? `legacy-${e.id}`} runId={e.panel?.guard_run_id} />}
             </li>
           ))}
         </ul>

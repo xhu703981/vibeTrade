@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GuardDetails } from "../ui/GuardDetails";
 import type { Card } from "../types";
 import { useNow } from "../useBackend";
 import { DECISION_LABEL, DECISION_TONE, MINUS, big, pct, usdF } from "./format";
@@ -51,6 +52,7 @@ export function CardView(props: {
       {c.guard.reasons.length > 0 && (
         <ul className="reasons">{c.guard.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
       )}
+      <GuardDetails key={`${c.id}:${c.guard.guard_run_id ?? "legacy"}`} runId={c.guard.guard_run_id} cardId={c.id} code={c.code} />
       {pending ? (
         <footer>
           <div className="drain" role="timer" aria-label="Time left to approve"><span style={{ width: `${(100 * left) / total}%` }} /></div>

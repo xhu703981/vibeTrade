@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ApiError, makeApi, type Api } from "./api";
 import { CandidatesPanel } from "./panels/CandidatesPanel";
 import { CardsPanel } from "./panels/CardsPanel";
+import { GuardRunPage } from "./ui/GuardRunPage";
 import { FilterTable } from "./panels/FilterTable";
 import { GuardAlert, latestAlert } from "./panels/GuardAlert";
 import { LiveLog } from "./panels/LiveLog";
@@ -30,6 +31,11 @@ import "./ui/voice.css";
 import type { Line } from "./ui/context";
 
 export default function App() {
+  const runId = new URLSearchParams(window.location.search).get("guard_run_id");
+  return runId !== null ? <GuardRunPage runId={runId} /> : <VoiceApp />;
+}
+
+function VoiceApp() {
   const api = useMemo(() => makeApi(), []);
   const utter = useMemo(() => new UtteranceStore(), []);
   const engagement = useMemo(() => new Engagement(), []);

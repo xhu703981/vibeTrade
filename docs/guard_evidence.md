@@ -40,3 +40,11 @@ applies; there is no special demo timer or approval bypass.
 
 Both the approval sheet and blocked Guard sheet render six plain sections. The read-only details
 are not sent to the voice agent. Legacy cards/events and unavailable data are labeled honestly.
+
+## Exact history navigation
+
+Details → Cards → Show past cards → the selected card's own “Show what the checks found” reads that card ID and captured run ID, including after timeout. Details → Activity → Simulation results exposes the same binding per card; each Guard blocked event has its own expansion. These never use the globally latest block as a substitute. No expired card gains approval controls.
+
+For a retained run even after a desk/session reset, open `/?guard_run_id=<exact-run-id>` on the frontend. This standalone read-only page GETs only `/guard-runs/<exact-run-id>/guard_view` and does not load voice, reset/confirm a mandate, or need a current engine. A missing/evicted capture or backend restart stays unavailable; saved JSON is not injected.
+
+The displayed run ID identifies the capture. Simulated balances remain actual raw base units / lamports, explicitly labelled; no token decimals or balances are inferred.

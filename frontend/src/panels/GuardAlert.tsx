@@ -1,4 +1,5 @@
 import type { BackendEvent } from "../types";
+import { GuardDetails } from "../ui/GuardDetails";
 
 // Warning row for guard blocks / sell failures / pipeline errors (latest one, dismissible).
 export const ALERT_TYPES = new Set(["guard_blocked", "sell_failed", "trade_failed", "price_feed_down", "emergency_exit"]);
@@ -52,6 +53,7 @@ export function GuardAlert(props: { event: BackendEvent | null; onDismiss: (id: 
       <span>{e.speak}</span>
       {e.panel?.flow && (e.panel.flow as Flow).alerts?.length > 0 && <FlowCompare flow={e.panel.flow as Flow} />}
       {reasons.length > 0 && <ul>{reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>}
+      {e.type === "guard_blocked" && <GuardDetails key={e.panel?.guard_run_id ?? `legacy-${e.id}`} runId={e.panel?.guard_run_id} />}
       <button className="text-btn" onClick={() => props.onDismiss(e.id)}>Dismiss</button>
     </div>
   );
