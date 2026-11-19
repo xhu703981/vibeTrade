@@ -1,0 +1,30 @@
+/* Design tokens: values exactly as in the restyle spec (ui-spec-v2, "设计 token"). Every colour, size, radius and
+   duration in restyled UI comes from here. One family, one accent (amber), three radii. */
+:root {
+  --ink: #161B1F;  --desk: #1D2328;  --raise: #252C32;  --rule: #2E363D;
+  --chalk: #E4E2DC;  --slate: #9AA3A9;
+  --amber: #E8A33D;  --up: #5BAE85;  --down: #D9695F;
+
+  --font: "IBM Plex Sans", system-ui, sans-serif;
+  --t-xs: 12px; --t-sm: 13px; --t-md: 15px; --t-lg: 18px; --t-xl: 24px; --t-2xl: 32px;
+  --lh-text: 1.45; --lh-num: 1.15;
+
+  --r-sm: 2px;   /* tags, small badges */
+  --r-md: 4px;   /* buttons, inputs */
+  --r-lg: 8px;   /* drawers, dialogs */
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --ease: cubic-bezier(.2,.0,.0,1); --dur: 160ms;
+
+  /* list rows (spec: 48px, phones 56px) */
+  --row-h: calc(var(--s6) + var(--s4));
+  --row-h-phone: calc(var(--s6) + var(--s5));
+}
+
+html, body { background: var(--ink); color: var(--chalk); }
+body { font: 400 var(--t-md)/var(--lh-text) var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+.num { font-variant-numeric: tabular-nums; line-height: var(--lh-num); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+}

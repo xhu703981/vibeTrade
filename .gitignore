@@ -1,0 +1,33 @@
+# secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.keypair
+*-keypair.json
+*_keypair.json
+id.json
+wallets/*.json
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# surfpool
+.surfpool/
+logs/
+# frontend
+node_modules/
+dist/
+runs/
+*.tsbuildinfo
+# local tool binaries (e.g. Windows Surfpool)
+.tools/
+
+# local sync backups and scratch
+backup_*/
+stale/
+# wallets / keys
+*keypair*.json
+*.pem
+*.key

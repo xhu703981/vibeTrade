@@ -1,0 +1,611 @@
+{
+ "nansen_holders": {
+  "x402Version": 2,
+  "error": "Payment required",
+  "resource": {
+   "url": "https://api.nansen.ai/api/v1/tgm/holders",
+   "description": "Get \"Token God Mode\" (TGM) holders data",
+   "mimeType": ""
+  },
+  "accepts": [
+   {
+    "scheme": "exact",
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "amount": "50000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:196",
+    "asset": "0x779Ded0c9e1022225f8E0630b35a9b54bE713736",
+    "amount": "50000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "USD\u20ae0",
+     "version": "1"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0xcE24439F2D9C6a2289F741120FE202248B666666",
+    "amount": "50000000000000000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "United Stables",
+     "version": "1",
+     "assetTransferMethod": "eip3009",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d",
+    "amount": "50000000000000000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "World Liberty Financial USD",
+     "version": "1",
+     "assetTransferMethod": "eip3009",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x55d398326f99059fF775485246999027B3197955",
+    "amount": "50000000000000000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "Tether USD",
+     "version": "1",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    "amount": "50000000000000000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "USD Coin",
+     "version": "1",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:143",
+    "asset": "0x754704Bc059F8C67012fEd69BC8A327a5aafb603",
+    "amount": "50000",
+    "payTo": "0x93053f1e7A5eFEDa532Fe69CbbE43cBEc3A0F13f",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "amount": "50000",
+    "payTo": "J7ZvJEspvwP1oRxQZ7mYmNmT22NTm3GWq3t7HEbvPZYx",
+    "maxTimeoutSeconds": 300,
+    "extra": {
+     "feePayer": "CjNFTjvBhbJJd2B5ePPMHRLx1ELZpa8dwQgGL727eKww"
+    }
+   }
+  ],
+  "extensions": {
+   "bazaar": {
+    "info": {
+     "input": {
+      "type": "http",
+      "bodyType": "json",
+      "body": {
+       "chain": "solana",
+       "token_address": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
+       "aggregate_by_entity": false,
+       "label_type": "all_holders",
+       "filters": {
+        "include_smart_money_labels": [
+         "Smart Trader"
+        ],
+        "ownership_percentage": {
+         "min": 0.01
+        },
+        "token_amount": {
+         "min": 1000
+        },
+        "value_usd": {
+         "min": 10000
+        }
+       }
+      },
+      "method": "POST"
+     },
+     "output": {
+      "type": "json",
+      "example": {
+       "data": [],
+       "pagination": {}
+      }
+     }
+    },
+    "schema": {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "type": "object",
+     "properties": {
+      "input": {
+       "type": "object",
+       "properties": {
+        "type": {
+         "type": "string",
+         "const": "http"
+        },
+        "method": {
+         "type": "string",
+         "enum": [
+          "POST",
+          "PUT",
+          "PATCH"
+         ]
+        },
+        "bodyType": {
+         "type": "string",
+         "enum": [
+          "json",
+          "form-data",
+          "text"
+         ]
+        },
+        "body": {
+         "type": "object",
+         "properties": {
+          "chain": {
+           "type": "string"
+          },
+          "token_address": {
+           "type": "string"
+          },
+          "aggregate_by_entity": {
+           "type": "boolean"
+          },
+          "label_type": {
+           "type": "string"
+          },
+          "pagination": {
+           "type": "object"
+          },
+          "filters": {
+           "type": "object"
+          },
+          "premium_labels": {
+           "type": "boolean"
+          },
+          "order_by": {
+           "type": "array"
+          }
+         },
+         "required": [
+          "chain",
+          "token_address"
+         ]
+        }
+       },
+       "required": [
+        "type",
+        "method",
+        "bodyType",
+        "body"
+       ],
+       "additionalProperties": false
+      },
+      "output": {
+       "type": "object",
+       "properties": {
+        "type": {
+         "type": "string"
+        },
+        "example": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "address": {
+              "type": "string"
+             },
+             "address_label": {
+              "type": "string"
+             },
+             "token_amount": {
+              "type": "number"
+             },
+             "total_outflow": {
+              "type": "number"
+             },
+             "total_inflow": {
+              "type": "number"
+             },
+             "balance_change_24h": {
+              "type": "number"
+             },
+             "balance_change_7d": {
+              "type": "number"
+             },
+             "balance_change_30d": {
+              "type": "number"
+             },
+             "ownership_percentage": {
+              "type": "number"
+             },
+             "value_usd": {
+              "type": "number"
+             }
+            }
+           }
+          },
+          "pagination": {
+           "type": "object",
+           "properties": {
+            "page": {
+             "type": "integer"
+            },
+            "per_page": {
+             "type": "integer"
+            },
+            "is_last_page": {
+             "type": "boolean"
+            }
+           }
+          },
+          "warnings": {
+           "type": "array",
+           "items": {
+            "type": "string"
+           }
+          }
+         },
+         "required": [
+          "data",
+          "pagination"
+         ]
+        }
+       },
+       "required": [
+        "type"
+       ]
+      }
+     },
+     "required": [
+      "input"
+     ]
+    }
+   }
+  }
+ },
+ "quickintel_scan": {
+  "x402Version": 2,
+  "accepts": [
+   {
+    "scheme": "exact",
+    "network": "eip155:8453",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:1",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:42161",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:10",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:137",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:43114",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+    "extra": {
+     "name": "USD Coin",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:130",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:59144",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:4326",
+    "amount": "30000000000000000",
+    "payTo": "0x8E7769D440b3460b92159Dd9C6D17302b036e2d6",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7",
+    "extra": {
+     "name": "MegaUSD",
+     "version": "1"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:146",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:999",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0xb88339CB7199b77E23DB6E890353E22632Ba630f",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:57073",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x2D270e6886d130D724215A266106e6832161EAEd",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:143",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x754704Bc059F8C67012fEd69BC8a327a5aafb603",
+    "extra": {
+     "name": "USDC",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:2741",
+    "amount": "30000",
+    "payTo": "0x3dBDfB6E5dCFa8f51AA07bC3aDf18a62b186C362",
+    "maxTimeoutSeconds": 3600,
+    "asset": "0x84A71ccD554Cc1b02749b35d22F684CC8ec987e1",
+    "extra": {
+     "name": "Bridged USDC (Stargate)",
+     "version": "2"
+    }
+   },
+   {
+    "scheme": "exact",
+    "network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+    "amount": "30000",
+    "payTo": "98fYvtYvLt56PujTNugQcYf4JTAg85kZXvoWTuhhu7eu",
+    "maxTimeoutSeconds": 3600,
+    "asset": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "extra": {
+     "feePayer": "FQLGi2s6GYHxiJARicRn2bJU9BNjaVwaNFkbKit44sCB"
+    }
+   }
+  ]
+ },
+ "cmc_dex_search": {
+  "x402Version": 2,
+  "resource": {
+   "url": "https://pro-api.coinmarketcap.com/x402/v1/dex/search",
+   "description": "Search for DEX tokens by keyword (name, symbol, or contract address).",
+   "mimeType": "application/json"
+  },
+  "accepts": [
+   {
+    "scheme": "exact",
+    "network": "eip155:8453",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "USD Coin",
+     "version": "2",
+     "x402PaymentConfigId": "699dbab79f32ffde650104aa",
+     "assetTransferMethod": "eip3009"
+    },
+    "amount": "10000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "USD Coin",
+     "version": "1",
+     "x402PaymentConfigId": "69ef242f50455dcce02f4530",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    },
+    "amount": "10000000000000000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0xcE24439F2D9C6a2289F741120FE202248B666666",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "United Stables",
+     "version": "1",
+     "x402PaymentConfigId": "69ef242e50455dcce02f3061",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    },
+    "amount": "10000000000000000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0xcE24439F2D9C6a2289F741120FE202248B666666",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "United Stables",
+     "version": "1",
+     "x402PaymentConfigId": "69ef242e50455dcce02f2e77",
+     "assetTransferMethod": "eip3009",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899"
+    },
+    "amount": "10000000000000000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "World Liberty Financial USD",
+     "version": "1",
+     "x402PaymentConfigId": "6a0c0019f37d0e2f6c9a3610",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    },
+    "amount": "10000000000000000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "World Liberty Financial USD",
+     "version": "1",
+     "x402PaymentConfigId": "6a0c0062f37d0e2f6c9a3612",
+     "assetTransferMethod": "eip3009",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899"
+    },
+    "amount": "10000000000000000"
+   },
+   {
+    "scheme": "exact",
+    "network": "eip155:56",
+    "asset": "0x55d398326f99059fF775485246999027B3197955",
+    "payTo": "0x3C5f3a6cE224BB89D72f5EB4232ecC27F67B3eeA",
+    "maxTimeoutSeconds": 30,
+    "extra": {
+     "name": "Tether USD",
+     "version": "1",
+     "x402PaymentConfigId": "69ef242f50455dcce02f3c2f",
+     "assetTransferMethod": "permit2-exact",
+     "signerAddress": "0x34F7a661160780Ce1346e6D7B96D2bE244590899",
+     "spenderAddress": "0x3038f7ac3b4D1a3fe886BdCB5cD01e9f6BDd8633"
+    },
+    "amount": "10000000000000000"
+   }
+  ],
+  "error": "Payment required"
+ }
+}

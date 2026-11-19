@@ -1,0 +1,13 @@
+{
+  "budget": {
+    "total_usdc": 5,
+    "per_trade_usdc": 1,
+    "daily_max_loss_usdc": 2
+  },
+  "exec": {
+    "max_fee_sol": 0.002
+  },
+  "exit": {
+    "take_profit_ladder": []
+  }
+}
