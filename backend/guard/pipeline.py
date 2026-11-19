@@ -6,7 +6,8 @@ import base64
 from backend.guard.rules import JUPITER_V6
 from backend.guard.semantic import AsksJEV
 from backend.guard.simulate import (SYSTEM_PROGRAM, TOKEN_PROGRAMS, SimResult, alt_addresses_of, decode_transaction,
-                                    fetch_alt_tables, parse_token_account, refresh_accounts, simulate)
+                                    fetch_alt_tables, is_local_rpc, parse_token_account, refresh_accounts,
+                                    simulate)
 from backend.guard.verdict import Verdict, decide
 from backend.trade.builder import TradeIntent
 
@@ -45,7 +46,8 @@ async def check_transaction(rpc, raw: bytes, intent: TradeIntent, quote: dict | 
     handle = evidence.observe(evidence.begin, raw)
     try:
         try:
-            refresh = await pool_accounts_to_refresh(rpc, raw, intent.wallet) if refresh_pools else None
+            refresh = (await pool_accounts_to_refresh(rpc, raw, intent.wallet)
+                       if refresh_pools and is_local_rpc(rpc) else None)   # mainnet is always current
             sim = await simulate(rpc, raw, intent.wallet, refresh)
         except Exception as e:  # noqa: BLE001
             evidence.observe(evidence.error, "decode_or_profile", e)

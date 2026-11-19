@@ -12,6 +12,8 @@ Modes (environment variables):
   VIBE_DISCOVERY=live|replay   live: live DexScreener + Helius discovery; replay: latest runs/m3_*.json (rehearsal)
   VIBE_RESEARCH=live|cache     live: pay real x402 money (cache first); cache: only already-bought cache, never pays (default)
   VIBE_UI_BUTTONS=1            enable the on-screen button channel (desk orders / cards / research top-ups)
+  VT_NETWORK=mainnet           trade on Solana MAINNET with real funds (default: the local Surfpool fork). Rehearsal-only
+                               features (price tests, the red-team coin, fork cheatcodes) are off on mainnet.
 The number of coins you can buy in a round is limited only by the session budget and the per-trade cap.
 
 Duplex conversation (the voice keeps going while work runs): long operations never hold the voice turn. Desk orders
@@ -29,7 +31,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from backend.config import redact, settings
+from backend.config import mainnet_rpc_url, network_status, redact, settings
 from backend.discovery.dexscreener import sanitize_symbol
 from backend.events import EventBus
 from backend.market.majors import all_templates, find_pool, live_prices
@@ -245,7 +247,7 @@ class Orchestrator:
     async def _default_research(self, coins, m, payer, ledger, approver, emit):
         from backend.research.pipeline import run_research
         from backend.solana_utils import Rpc
-        rpc = Rpc(settings.solana_rpc_url)
+        rpc = Rpc(settings.solana_rpc_url or mainnet_rpc_url())
         try:
             res = await run_research(coins, m, rpc, payer, ledger, self._jev_factory(), approver, emit, log=lambda _s: None)
         finally:
@@ -617,7 +619,9 @@ class Orchestrator:
         """Rehearsal only: a coin whose token text carries a prompt injection. The text is flagged by code and kept away
         from the agent; buying it shows the guard blocking the transfer a naive builder would have added."""
         from backend.copilot import redteam
-        if not redteam.enabled() or self.discovery_mode == "live" or self.research_mode == "live" or self.engine is None:
+        from backend.config import is_mainnet
+        if (is_mainnet() or not redteam.enabled() or self.discovery_mode == "live" or self.research_mode == "live"
+                or self.engine is None):
             return []
         fx = redteam.load()
         if any(o["mint"] == fx["mint"] for o in self.offers) or not hasattr(self.engine, "redteam"):
@@ -958,7 +962,8 @@ class Orchestrator:
 
     # ---------- rehearsal price test (fork only) ----------
     def price_test_enabled(self) -> bool:
-        if os.environ.get("VIBE_PRICE_TEST", "1") == "0" or self.engine is None:
+        from backend.config import is_mainnet
+        if is_mainnet() or os.environ.get("VIBE_PRICE_TEST", "1") == "0" or self.engine is None:
             return False
         if self.discovery_mode == "live" or self.research_mode == "live":
             return False      # rehearsal only
@@ -1159,7 +1164,7 @@ class Orchestrator:
                          "remaining_usdc": self.remaining_usdc(), "round": self.round_no},
                 "amend": {"allowed": self.mandate is not None and why is None, "blocked_reason": why},
                 "working_on": self.working_on(), "round_running": self.round_running(),
-                "price_test_enabled": self.price_test_enabled()}
+                "price_test_enabled": self.price_test_enabled(), "network": network_status()}
 
     def agent_status(self) -> dict:
         """Status for the voice agent: only numbers, codes and our own fixed labels; no token names or third-party text."""

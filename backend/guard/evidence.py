@@ -160,7 +160,7 @@ def simulation(sim, intent):
                      "profiled_accounts": len(snaps)})
     rows.append({"asset": "SOL", "unit": "lamports", "before": sim.sol_pre, "after": sim.sol_post,
                  "delta": sim.sol_post - sim.sol_pre if sim.sol_pre is not None and sim.sol_post is not None else None})
-    run["simulation"] = {"source": "surfnet_profileTransaction", "scope": "profiled wallet accounts, not total portfolio",
+    run["simulation"] = {"source": getattr(sim, "source", "surfnet_profileTransaction"), "scope": "profiled wallet accounts, not total portfolio",
                          "success": sim.success, "error": "simulation failed" if sim.error else None, "balances": rows}
 
 

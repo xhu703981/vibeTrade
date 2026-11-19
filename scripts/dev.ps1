@@ -1,15 +1,17 @@
 # One-command local start on Windows (no Ubuntu / WSL required).
 #   .\scripts\dev.ps1              rehearsal: replay discovery, cached research, no real money
 #   .\scripts\dev.ps1 -Mode live   live discovery + real x402 research (asks for "yes")
+#   .\scripts\dev.ps1 -Mode mainnet  MAINNET REAL FUNDS: live discovery + x402 research, and approved cards send real
+#                                   Solana mainnet swaps via Jupiter (asks you to type MAINNET; hard $5/trade ceiling)
 #   .\scripts\dev.ps1 -Setup       install Python venv, npm deps, and the Windows Surfpool binary
 #   .\scripts\dev.ps1 -Lan         also open the UI to phones on the same Wi-Fi (http://<this PC's IP>:5173)
 #   .\scripts\dev.ps1 -Lan -Https  same, over self-signed HTTPS: phones only give the microphone to https:// pages
 #
-# Trading only happens on the local Surfpool fork. Backend and frontend keep running after
+# Without -Mode mainnet, trading only happens on the local Surfpool fork. Backend and frontend keep running after
 # this window is closed; stop them with .\scripts\stop_dev.ps1
 # (Surfpool stays up until .\scripts\stop_surfpool.ps1).
 param(
-    [ValidateSet('rehearsal', 'live')]
+    [ValidateSet('rehearsal', 'live', 'mainnet')]
     [string]$Mode = 'rehearsal',
     [switch]$Setup,
     [switch]$Lan,
@@ -133,18 +135,36 @@ Import-DotEnv
 
 if ($Setup) { Invoke-Setup }
 
-if ($Mode -eq 'live') {
+if ($Mode -eq 'mainnet') {
+    # explicit opt-in only: VT_NETWORK is never read from .env for the other modes (they force 'fork' below)
+    $env:VT_NETWORK = 'mainnet'
+    $env:VIBE_DISCOVERY = 'live'
+    if (-not $env:VIBE_RESEARCH) { $env:VIBE_RESEARCH = 'live' }
+    $cap = if ($env:VT_MAINNET_MAX_TRADE_USD) { $env:VT_MAINNET_MAX_TRADE_USD } else { '5' }
+    Write-Host ''
+    Write-Host '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' -ForegroundColor Yellow
+    Write-Host '  MAINNET REAL FUNDS' -ForegroundColor Yellow
+    Write-Host "  Every card you approve sends a real Solana mainnet swap (Jupiter). On-chain trades cannot be undone." -ForegroundColor Yellow
+    Write-Host "  Hard ceiling: `$$cap per trade (VT_MAINNET_MAX_TRADE_USD), on top of your mandate limits." -ForegroundColor Yellow
+    Write-Host "  Research mode: $($env:VIBE_RESEARCH) (live = x402 research fees from the Base wallet)." -ForegroundColor Yellow
+    Write-Host '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' -ForegroundColor Yellow
+    $ans = Read-Host 'Continue with real money? Type MAINNET'
+    if ($ans -cne 'MAINNET') { Write-Host 'cancelled'; exit 1 }
+} elseif ($Mode -eq 'live') {
+    $env:VT_NETWORK = 'fork'
     $env:VIBE_DISCOVERY = 'live'
     $env:VIBE_RESEARCH = 'live'
     Write-Host "WARNING live mode: paid research spends real USDC from the Base research wallet (at most `$0.08 per coin, never more than the mandate research budget)."
     $ans = Read-Host 'Continue? Type yes'
     if ($ans -ne 'yes') { Write-Host 'cancelled'; exit 1 }
 } else {
+    $env:VT_NETWORK = 'fork'
+
     if (-not $env:VIBE_DISCOVERY) { $env:VIBE_DISCOVERY = 'replay' }
     if (-not $env:VIBE_RESEARCH) { $env:VIBE_RESEARCH = 'cache' }
 }
 if (-not $env:VIBE_UI_BUTTONS) { $env:VIBE_UI_BUTTONS = '1' }
-Write-Host "mode: discovery=$($env:VIBE_DISCOVERY) research=$($env:VIBE_RESEARCH) ui_buttons=$($env:VIBE_UI_BUTTONS)"
+Write-Host "mode: network=$($env:VT_NETWORK) discovery=$($env:VIBE_DISCOVERY) research=$($env:VIBE_RESEARCH) ui_buttons=$($env:VIBE_UI_BUTTONS)"
 
 $py = Join-Path $Root '.venv\Scripts\python.exe'
 if (-not (Test-Path $py)) {
@@ -154,8 +174,17 @@ if (-not (Test-Path (Join-Path $Root 'frontend\node_modules'))) {
     throw "Frontend dependencies are missing. From PowerShell run:  .\scripts\dev.ps1 -Setup"
 }
 
+# The scratch fork (8999) is still used in mainnet mode, only to simulate a test buy/sell of research candidates with a
+# throwaway wallet; it never touches the real trading wallet.
 & (Join-Path $PSScriptRoot 'start_surfpool.ps1')
-& $py (Join-Path $Root 'scripts\fund_wallets.py') --sol 2 --usdc 50
+if ($env:VT_NETWORK -eq 'mainnet') {
+    # no fork funding / cheatcodes for the real wallet: check the mainnet RPC and the real balance instead (fail closed)
+    $env:PYTHONUTF8 = '1'
+    & $py (Join-Path $Root 'scripts\mainnet_check.py')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'mainnet preflight failed: not starting (nothing was sent).'; exit 1 }
+} else {
+    & $py (Join-Path $Root 'scripts\fund_wallets.py') --sol 2 --usdc 50
+}
 
 $backendPort = Select-FreePort 8000 @(8010, 8020, 8030)
 $frontendPort = Select-FreePort 5173 @(5174, 5175, 5176)
@@ -203,6 +232,7 @@ if (-not $ready) {
 }
 
 Write-Host "backend ready at http://127.0.0.1:$backendPort (log: logs\backend.out)"
+if ($env:VT_NETWORK -eq 'mainnet') { Write-Host 'MAINNET REAL FUNDS: the UI shows an amber MAINNET badge. Transactions: logs\backend.out ([mainnet] lines) and runs\m6_trades_*.json.' -ForegroundColor Yellow }
 Write-Host "frontend: open ${scheme}://127.0.0.1:$frontendPort (Chrome / Edge, allow the microphone)"
 if ($Lan) {
     $ips = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.PrefixOrigin -ne 'WellKnown' } | Select-Object -ExpandProperty IPAddress

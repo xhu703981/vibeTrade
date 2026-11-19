@@ -29,6 +29,7 @@ import "./styles.css";
 import "./ui/voice.css";
 
 import type { Line } from "./ui/context";
+import { NetworkBadge } from "./ui/NetworkBadge";
 
 export default function App() {
   const runId = new URLSearchParams(window.location.search).get("guard_run_id");
@@ -385,7 +386,7 @@ function Meeting(props: { api: Api; utter: UtteranceStore; lines: Line[]; addLin
                                                                   position={positions.find((p) => p.mint === o.mint && p.status === "open") ?? null}
                                                                   onOrder={(n, usd) => placeOrders([{ coin_number: n, amount_usdc: usd }])} /> } : null;
       }
-      case "order": return { title: "Waiting for your OK", tone: "warn" as const, node: <OrderSheet cards={pendingCards(state)} buttons={buttons} onApprove={approve} onReject={reject} /> };
+      case "order": return { title: "Waiting for your OK", tone: "warn" as const, node: <OrderSheet cards={pendingCards(state)} buttons={buttons} onApprove={approve} onReject={reject} realFunds={!!state?.network?.real_funds} /> };
       case "position": return { title: openPos.length ? `${openPos.length} open position${openPos.length === 1 ? "" : "s"}` : "Positions", node: <PositionSheet positions={positions} /> };
       case "guard": {
         const e = events.find((x) => x.id === current.eventId);
@@ -428,7 +429,7 @@ function Meeting(props: { api: Api; utter: UtteranceStore; lines: Line[]; addLin
       </>
     ) },
     { id: "positions", label: "Positions", badge: openPos.length || null, content: (
-      <PositionsPanel positions={positions} canExit={!!state?.engine} testEnabled={!!state?.price_test_enabled}
+      <PositionsPanel positions={positions} canExit={!!state?.engine} testEnabled={!!state?.price_test_enabled && !state?.network?.real_funds}
                       onTest={(kind) => act(() => api.post("/test/price-move", { kind, channel: "button" }))}
                       onEmergency={() => { if (window.confirm("Sell all positions now?")) act(() => api.post("/emergency-exit", { channel: "button" })); }} />
     ) },
@@ -447,6 +448,7 @@ function Meeting(props: { api: Api; utter: UtteranceStore; lines: Line[]; addLin
     <div className={`vt ${sheet ? "has-sheet" : ""} ${picks.length ? "has-picks" : ""} ${keyboard ? "has-keys" : ""}`} style={{ ["--dock-h" as any]: `${dockH}px` }}>
       <header className="topbar">
         <span className="brand">Vibe<i className={`dot ${wsUp ? "on" : ""}`} title={wsUp ? "Connected" : "Reconnecting to the backend"} aria-label={wsUp ? "Connected" : "Reconnecting"} /></span>
+        <NetworkBadge network={state?.network} />
         <span className="spacer" />
         {budget != null && (
           <button type="button" className="figures" onClick={openLimits} aria-label="Limits and today's result">

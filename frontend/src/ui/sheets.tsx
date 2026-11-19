@@ -6,7 +6,7 @@ import { secondsLeft } from "../panels/CardsPanel";
 import { getPath } from "../panels/FilterTable";
 import { DECISION_LABEL, DECISION_TONE, MINUS, TRIGGER_LABEL, big, pct, signedPct, updatedAgo, usdF } from "../panels/format";
 import { FlowCompare } from "../panels/GuardAlert";
-import { pnl, usd } from "../panels/PositionsPanel";
+import { TxRef, pnl, usd } from "../panels/PositionsPanel";
 import { PriceChart, fmtPrice } from "../panels/PriceChart";
 import type { AppState, BackendEvent, Card, DeskOffer, Position } from "../types";
 import { useNow } from "../useBackend";
@@ -146,7 +146,7 @@ export function cardSentence(c: Card): string {
 }
 
 /** Cards waiting for her yes: the code is the thing she answers, so it is the largest and the only amber. */
-export function OrderSheet(props: { cards: Card[]; buttons: boolean; onApprove: (c: Card) => void; onReject: (c: Card) => void }) {
+export function OrderSheet(props: { cards: Card[]; buttons: boolean; onApprove: (c: Card) => void; onReject: (c: Card) => void; realFunds?: boolean }) {
   const now = useNow(500);
   return (
     <div className="orders">
@@ -162,6 +162,7 @@ export function OrderSheet(props: { cards: Card[]; buttons: boolean; onApprove: 
               <span className={`verdict ${DECISION_TONE[g] ?? ""}`}>{DECISION_LABEL[g] ?? g}</span>
             </div>
             <p className="order-what">{cardSentence(c)}</p>
+            {props.realFunds && <p className="order-note real-funds" data-testid="real-funds-note">Mainnet, real funds: approving sends a real Solana transaction. It can't be undone.</p>}
             {buy && c.loss_worst_usdc != null && <p className="order-note">Worst case about {usdF(c.loss_worst_usdc)} if the price gaps past the stop.</p>}
             {c.cap_note && <p className="order-note">{c.cap_note[0].toUpperCase() + c.cap_note.slice(1)}.</p>}
             {c.warning && <p className="pick-worry pr-warn"><i aria-hidden />{c.warning}</p>}
@@ -204,7 +205,8 @@ export function PositionSheet(props: { positions: Position[] }) {
             {p.status !== "open" && <p className="soft small">{p.status === "closed" ? "Closed." : p.status === "stuck" ? "Can't sell right now." : p.status}</p>}
             {p.feed_down && <p className="down small">Price feed down. The stop can't fire until it is back.</p>}
             {ago && <p className="soft small">{ago}</p>}
-            {p.sells.slice(-2).map((s, i) => <p key={i} className="soft small">{TRIGGER_LABEL[s.trigger] ?? s.trigger}: got back {usd(s.usdc)}.</p>)}
+            {(p.buys ?? []).filter((b) => b.explorer_url).slice(-2).map((b, i) => <p key={`b${i}`} className="soft small">Bought for {usd(b.usdc)}. <TxRef sig={b.sig} url={b.explorer_url} /></p>)}
+            {p.sells.slice(-2).map((s, i) => <p key={i} className="soft small">{TRIGGER_LABEL[s.trigger] ?? s.trigger}: got back {usd(s.usdc)}.{s.explorer_url ? <> <TxRef sig={s.sig} url={s.explorer_url} /></> : null}</p>)}
           </li>
         );
       })}

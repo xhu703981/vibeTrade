@@ -28,8 +28,27 @@ from backend.mandate.dialogue import CONFIRM_RE as CONFIRM_WORD_RE, LIMIT_PATHS,
 from backend.orchestrator import Orchestrator
 from backend.voice.verify import echo_problem
 
+def mainnet_banner() -> str | None:
+    """Startup banner in mainnet mode: network, per-trade ceiling and the trading wallet's PUBLIC key (never secrets)."""
+    from backend.config import is_mainnet, mainnet_max_trade_usd, network_status, settings
+    if not is_mainnet():
+        return None
+    from backend.solana_utils import load_or_create_keypair
+    kp, _ = load_or_create_keypair(settings.trading_keypair_path)
+    n = network_status()
+    bar = "!" * 72
+    return "\n".join([bar, "  MAINNET REAL FUNDS: every approved card sends a real Solana transaction.",
+                      f"  trading wallet (public): {kp.pubkey()}",
+                      f"  hard ceiling: ${mainnet_max_trade_usd():g} per trade, SOL fee reserve {n['min_sol']:g} SOL, "
+                      f"rpc: {n['rpc']}", bar])
+
+
 @contextlib.asynccontextmanager
 async def _lifespan(_app):
+    with contextlib.suppress(Exception):
+        b = mainnet_banner()
+        if b:
+            print(b, flush=True)
     yield
     with contextlib.suppress(Exception):
         await asyncio.wait_for(_app.state.orch.close(), 10)

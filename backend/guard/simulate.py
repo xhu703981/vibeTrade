@@ -3,6 +3,10 @@
 - Trust only the transaction bytes: the guard expands the account list itself and fetches lookup tables (ALTs) from chain, never trusting Jupiter's mapping.
 - Surfpool's simulateTransaction gives no pre/post balances, so surfnet_profileTransaction is used;
   it returns the full before/after state of each writable account; deltas are parsed here from raw bytes (no jsonParsed).
+- Mainnet mode (a non-local RPC, VT_NETWORK=mainnet): there are no surfnet_* methods, so the same before/after picture
+  is built from standard RPC: getMultipleAccounts (pre-state of every writable account) + simulateTransaction with
+  sigVerify and the real blockhash (nothing is sent or committed) returning the post-state of those same accounts.
+  No pool refresh is needed: mainnet is always current. Any error still blocks (fail closed).
 - This module does not depend on the LLM / dialogue code.
 """
 from __future__ import annotations
@@ -104,6 +108,7 @@ class SimResult:
     # sum of the rent of those whose lamports exactly equal the rent-exempt minimum (filled by simulate() via chain queries)
     created_rent_lamports: int = 0
     notes: list[str] = field(default_factory=list)
+    source: str = "surfnet_profileTransaction"   # or "simulateTransaction" (mainnet)
 
     @property
     def sol_delta(self) -> int:
@@ -287,8 +292,63 @@ def summarize(tx: DecodedTx, wallet: str, profile_value: dict) -> SimResult:
     )
 
 
+def is_local_rpc(rpc) -> bool:
+    """Only a local Surfpool fork understands surfnet_* cheatcodes. Objects without a URL (test fakes) count as local."""
+    from urllib.parse import urlparse
+    url = getattr(rpc, "url", None)
+    return not isinstance(url, str) or urlparse(url).hostname in ("127.0.0.1", "localhost")
+
+
+MAX_SIM_ACCOUNTS = 100   # simulateTransaction / getMultipleAccounts limit per call
+
+
+async def profile_on_mainnet(rpc, raw: bytes, tx: DecodedTx) -> dict:
+    """Standard-RPC equivalent of surfnet_profileTransaction's value: pre-state via getMultipleAccounts, post-state via
+    simulateTransaction (sigVerify=True, the transaction's own blockhash). Never sends. Raises on anything incomplete."""
+    keys: list[str] = []
+    for k, w in zip(tx.account_keys, tx.writable):
+        if w and k not in keys:
+            keys.append(k)
+    if not keys or len(keys) > MAX_SIM_ACCOUNTS:
+        raise SimulationError(f"cannot simulate {len(keys)} writable accounts on mainnet")
+    pre_res = await rpc.call("getMultipleAccounts", [keys, {"encoding": "base64", "commitment": "confirmed"}])
+    pre = list(pre_res.get("value") or [])
+    res = await rpc.call("simulateTransaction", [base64.b64encode(raw).decode(), {
+        "encoding": "base64", "sigVerify": True, "replaceRecentBlockhash": False, "commitment": "confirmed",
+        "accounts": {"addresses": keys, "encoding": "base64"}}])
+    v = res.get("value") or {}
+    err = v.get("err")
+    post = v.get("accounts")
+    if len(pre) != len(keys):
+        raise SimulationError("mainnet pre-state is incomplete")
+    if err is None and (not isinstance(post, list) or len(post) != len(keys)):
+        raise SimulationError("mainnet simulation returned no account post-state")
+    if err is not None:
+        post = pre      # failed: nothing changes (the guard blocks on the failure itself)
+    states = {}
+    for k, a, b in zip(keys, pre, post):
+        if a is None and b is None:
+            ch = {"type": "unchanged", "data": None}
+        elif a is None:
+            ch = {"type": "create", "data": b}
+        elif b is None or (int(b.get("lamports") or 0) == 0 and not (b.get("data") or [""])[0]):
+            ch = {"type": "delete", "data": a}
+        elif a == b:
+            ch = {"type": "unchanged", "data": a}
+        else:
+            ch = {"type": "update", "data": [a, b]}
+        states[k] = {"type": "writable", "accountChange": ch}
+    return {"transactionProfile": {
+        "accountStates": states, "logMessages": v.get("logs") or [],
+        "errorMessage": None if err is None else str(err)[:300],
+        "computeUnitsConsumed": int(v.get("unitsConsumed") or 0)}}
+
+
 async def refresh_accounts(rpc, pubkeys: list[str]) -> None:
-    """surfnet_resetAccount: drop the fork's local state; the next access refetches the latest mainnet value."""
+    """surfnet_resetAccount: drop the fork's local state; the next access refetches the latest mainnet value.
+    No-op on a real (mainnet) RPC: it is always current and has no cheatcodes."""
+    if not is_local_rpc(rpc):
+        return
     for pk in pubkeys:
         await rpc.call("surfnet_resetAccount", [pk, {"includeOwnedAccounts": False}])
 
@@ -299,6 +359,11 @@ async def simulate(rpc, raw: bytes, wallet: str, refresh: list[str] | None = Non
     tx = decode_transaction(raw, tables)
     from backend.guard import evidence
     evidence.observe(evidence.decoded, raw, tx)
+    if not is_local_rpc(rpc):
+        sim = summarize(tx, wallet, await profile_on_mainnet(rpc, raw, tx))
+        sim.source = "simulateTransaction"
+        await fill_created_rent(rpc, sim)
+        return sim
     if refresh:
         await refresh_accounts(rpc, refresh)
     res = await rpc.call("surfnet_profileTransaction", [base64.b64encode(raw).decode(), None, {"encoding": "base64"}])

@@ -54,7 +54,9 @@ export function LiveLog(props: { events: BackendEvent[]; state: AppState | null 
           {log.map((e) => (
             <li key={e.id} className={e.loud ? "loud" : ""} aria-label={`${TYPE_LABEL[e.type] ?? e.type} event ${e.id}`}>
               <time>{new Date(e.ts * 1000).toLocaleTimeString()}</time> <b>{TYPE_LABEL[e.type] ?? e.type}</b> {e.speak}
-              {e.panel?.signature && <code> {short(e.panel.signature, 8)}</code>}
+              {e.panel?.signature && (typeof e.panel.explorer_url === "string" && e.panel.explorer_url.startsWith("https://solscan.io/tx/")
+                ? <> <a className="tx-link" href={e.panel.explorer_url} target="_blank" rel="noreferrer noopener"><code>{short(e.panel.signature, 8)}</code> Solscan</a></>
+                : <code> {short(e.panel.signature, 8)}</code>)}
               {e.type === "guard_blocked" && <GuardDetails key={e.panel?.guard_run_id ?? `legacy-${e.id}`} runId={e.panel?.guard_run_id} />}
             </li>
           ))}

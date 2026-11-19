@@ -1,4 +1,9 @@
-"""Trading engine: confirmation card -> approval check -> re-quote + re-simulate + guard -> execute -> hand to the listener. Surfpool fork only."""
+"""Trading engine: confirmation card -> approval check -> re-quote + re-simulate + guard -> execute -> hand to the listener.
+
+Surfpool fork by default. Mainnet (VT_NETWORK=mainnet, explicit opt-in) keeps every check and adds: a hard per-trade USD
+ceiling (VT_MAINNET_MAX_TRADE_USD, default $5) and a live wallet balance check (USDC + a SOL fee reserve) right before
+each buy card and each buy send; if the balance cannot be read, nothing is bought (fail closed). No red-team injection,
+no price tests, no cheatcodes on mainnet."""
 from __future__ import annotations
 
 import asyncio
@@ -7,12 +12,13 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from backend.config import JUPITER_ROUTE_DEXES, USDC_MINT, route_dexes, settings, ticker_for_mint
+from backend.config import (JUPITER_ROUTE_DEXES, USDC_MINT, is_mainnet, mainnet_max_trade_usd,
+                            mainnet_min_sol_lamports, route_dexes, settings, ticker_for_mint, trading_rpc_url)
 from backend.discovery.dexscreener import sanitize_symbol
 from backend.events import EventBus
 from backend.execute.cards import (MAX_FAILED_ATTEMPTS, Card, CodeBook, new_card_id, verify_approval, verify_derisk_yes,
                                    verify_modify)
-from backend.execute.executor import Executor, assert_local
+from backend.execute.executor import Executor, assert_send_allowed
 from backend.execute.failure_speak import (
     blocked_buy_speak, expired_card_speak, reprice_void_speak, trade_failed_speak,
 )
@@ -45,13 +51,47 @@ def _numeric(d: dict) -> dict:
     return {k: d[k] for k in METRIC_KEYS if isinstance(d.get(k), (int, float)) and not isinstance(d.get(k), bool)}
 
 
+def mainnet_ceiling_reason(amount_usdc: float) -> str | None:
+    """Mainnet only: the hard per-trade ceiling on top of the mandate (never loosens it). None = fine."""
+    if not is_mainnet():
+        return None
+    cap = mainnet_max_trade_usd()
+    if not (amount_usdc > 0) or amount_usdc > cap + 1e-9:
+        return (f"{money_words(round(amount_usdc * 1e6))} is above the mainnet real-money limit of "
+                f"{money_words(round(cap * 1e6))} per trade")
+    return None
+
+
+async def mainnet_funds_reason(rpc, wallet: str, amount_usdc: float) -> str | None:
+    """Mainnet only: the wallet must hold the USDC and a SOL fee reserve now. Unreadable balance = no buy."""
+    if not is_mainnet():
+        return None
+    try:
+        usdc = await token_balance(rpc, wallet, USDC_MINT)
+        lamports = int((await rpc.call("getBalance", [wallet, {"commitment": "confirmed"}]))["value"])
+    except Exception as ex:  # noqa: BLE001  fail closed
+        return f"the mainnet wallet balance could not be read ({type(ex).__name__}), so nothing was bought"
+    need_sol = mainnet_min_sol_lamports()
+    if lamports < need_sol:
+        return (f"the trading wallet has {lamports / 1e9:.4f} SOL, below the {need_sol / 1e9:.4f} SOL kept for fees; "
+                "send a little SOL to it first")
+    if usdc < round(amount_usdc * 1e6):
+        return f"the trading wallet holds {money_words(usdc)} USDC, less than {money_words(round(amount_usdc * 1e6))}"
+    return None
+
+
 class TradingEngine:
     def __init__(self, mandate, rpc_url: str | None = None, keypair_path: Path | None = None, bus: EventBus | None = None,
                  jev=None, price_source=None, ui_button_enabled: bool = False, upstream_url: str | None = None,
-                 log_path: Path | None = None, fork_mode: bool = True):
+                 log_path: Path | None = None, fork_mode: bool | None = None):
         self.m = mandate
-        self.rpc = Rpc(rpc_url or settings.surfpool_rpc_url)
-        assert_local(self.rpc)
+        self.mainnet = is_mainnet()
+        if fork_mode is None:
+            fork_mode = not self.mainnet
+        if self.mainnet and fork_mode:
+            raise ValueError("mainnet mode cannot run the listener in fork mode")
+        self.rpc = Rpc(rpc_url or trading_rpc_url())
+        assert_send_allowed(self.rpc)
         self.kp, _ = load_or_create_keypair(keypair_path or settings.trading_keypair_path)
         self.wallet = str(self.kp.pubkey())
         self.bus = bus or EventBus()
@@ -64,7 +104,9 @@ class TradingEngine:
         self.positions: dict[str, Position] = {}
         self.spent_usdc = 0.0
         self.executor = Executor(self.rpc, log_path)
-        self.listener = Listener(self, price_source or ForkPriceSource(self.rpc, self.kp, self.upstream), fork_mode=fork_mode)
+        # mainnet: the same executable sell-value pricing (simulate a sell, never sent) against mainnet itself; no refresh
+        self.listener = Listener(self, price_source or ForkPriceSource(self.rpc, self.kp, self.upstream, refresh=not self.mainnet),
+                                 fork_mode=fork_mode)
         self._sweeper: asyncio.Task | None = None
         self._pool: dict[str, str | None] = {}
         self.mandates: dict[str, object] = {mandate.mandate_id: mandate}   # every version, so open positions keep their rules
@@ -135,7 +177,7 @@ class TradingEngine:
         intent = build_buy_intent(self.m, self.wallet, mint, amount_usdc, int(b["outAmount"]), self.spent_usdc)
         alts = await fetch_alts(self.rpc, list((b.get("addressesByLookupTableAddress") or {}).keys()))
         ixs = build_instructions(b)
-        evil = getattr(self, "redteam", {}).get(mint)
+        evil = None if is_mainnet() else getattr(self, "redteam", {}).get(mint)
         if evil:   # rehearsal red-team: a naive builder obeyed the token's injected text; the guard below must catch it
             from backend.copilot.redteam import obey_injection_ix
             ixs.append(obey_injection_ix(self.wallet, evil, round(amount_usdc * 1e6)))
@@ -162,6 +204,11 @@ class TradingEngine:
         if why:
             self.bus.emit("trade_failed", why[0].upper() + why[1:] + ". Selling is still allowed.",
                           {"mint": mint, "stage": "daily_loss", "coin_number": coin_number}, loud=True)
+            return None
+        why = mainnet_ceiling_reason(amount_usdc) or await mainnet_funds_reason(self.rpc, self.wallet, amount_usdc)
+        if why:
+            self.bus.emit("trade_failed", "No card: " + why + ".",
+                          {"mint": mint, "stage": "mainnet_limit", "coin_number": coin_number}, loud=True)
             return None
         try:
             b, raw, intent, v, sim = await self._build_buy(mint, amount_usdc, refresh_pools=True)
@@ -281,6 +328,7 @@ class TradingEngine:
                 build_buy_intent(self.m, self.wallet, c.mint, float(amount or 0), 1, self.spent_usdc)
             except IntentError as e:
                 why = str(e)
+            why = why or mainnet_ceiling_reason(float(amount or 0))
         if why:
             c.failed_attempts += 1
             c.history.append({"ts": time.time(), "event": "approval_rejected", "why": why})
@@ -325,6 +373,13 @@ class TradingEngine:
             self.bus.emit("card_voided", f"Card {c.code} is void: {block}. Selling is still allowed.",
                           {"card_id": c.id, "why": "daily_max_loss", "coin_number": c.coin_number}, loud=True)
             return {"ok": False, "status": c.status, "reason": block}
+        block = mainnet_ceiling_reason(amount) or await mainnet_funds_reason(self.rpc, self.wallet, amount)   # right before sending
+        if block:
+            c.status = "voided"
+            c.history.append({"ts": time.time(), "event": "voided", "why": "mainnet_limit"})
+            self.bus.emit("card_voided", f"Card {c.code} is void: {block}. Nothing was bought.",
+                          {"card_id": c.id, "why": "mainnet_limit", "coin_number": c.coin_number}, loud=True)
+            return {"ok": False, "status": c.status, "reason": block}
         try:
             b, raw, intent, v, sim = await self._build_buy(c.mint, amount, refresh_pools=True)
         except (IntentError, JupiterError) as ex:
@@ -362,8 +417,9 @@ class TradingEngine:
         if rec.error:
             c.status = "failed"
             self.bus.emit("trade_failed", trade_failed_speak(c.code, c.coin_number, rec.error[:120]),
-                          {"card_id": c.id, "signature": rec.signature, "error": rec.error[:120], "coin_number": c.coin_number}, loud=True)
-            return {"ok": False, "status": c.status, "signature": rec.signature, "error": rec.error}
+                          {"card_id": c.id, "signature": rec.signature, "explorer_url": getattr(rec, "explorer_url", None),
+                           "error": rec.error[:120], "coin_number": c.coin_number}, loud=True)
+            return {"ok": False, "status": c.status, "signature": rec.signature, "explorer_url": getattr(rec, "explorer_url", None), "error": rec.error}
         got = await token_balance(self.rpc, self.wallet, c.mint) - tok0
         spent = usdc0 - await token_balance(self.rpc, self.wallet, USDC_MINT)
         rec.received, rec.spent = got, spent
@@ -387,7 +443,7 @@ class TradingEngine:
         if not fresh:
             pos.add_fill(got, spent, baseline)
         else:
-            pos = Position(c.mint, c.symbol_display, pool, got, got, spent, await fork_clock(self.rpc), liq,
+            pos = Position(c.mint, c.symbol_display, pool, got, got, spent, time.time() if is_mainnet() else await fork_clock(self.rpc), liq,
                            mandate_id=self.m.mandate_id, coin_number=c.coin_number,
                            ticker=c.ticker or ticker_for_mint(c.mint))
             if c.stop_loss_pct is not None:
@@ -396,6 +452,8 @@ class TradingEngine:
                 pos.set_exit_baseline(baseline, got)
                 pos.last_ratio, pos.last_value_usdc, pos.price_at = 1.0, baseline, time.time()
             self.positions[c.mint] = pos
+        getattr(pos, "buys", []).append({"sig": rec.signature, "usdc": spent, "tokens": got,
+                                         "explorer_url": getattr(rec, "explorer_url", None)})
         cost = (1 - baseline / spent) * 100 if baseline and spent else None
         fees = (f" About {max(1, round(cost))} percent of that is fees and slippage if you sold right now; the stop counts the price move from here."
                 if cost is not None and cost >= 0.05 else "")
@@ -403,9 +461,11 @@ class TradingEngine:
         watch = (f"Watching the {round(stop)} percent stop" if stop else "Watching it") + "; I'll offer to sell some if it climbs."
         self.bus.emit("trade_executed", f"Card {c.code} filled: bought for {money_words(spent)}. {watch}{fees}",
                       {"side": "buy", "card_id": c.id, "mint": c.mint, "symbol": c.symbol_display, "usdc_in": spent,
-                       "tokens_out": got, "signature": rec.signature, "deviation_pct": round(dev, 3),
+                       "tokens_out": got, "signature": rec.signature, "explorer_url": getattr(rec, "explorer_url", None),
+                       "network": "mainnet" if is_mainnet() else "fork", "deviation_pct": round(dev, 3),
                        "exit_baseline_usdc": baseline, "roundtrip_cost_pct": round(cost, 3) if cost is not None else None})
-        return {"ok": True, "status": c.status, "signature": rec.signature, "tokens_out": got, "usdc_in": spent}
+        return {"ok": True, "status": c.status, "signature": rec.signature, "explorer_url": getattr(rec, "explorer_url", None),
+                "tokens_out": got, "usdc_in": spent}
 
     async def emergency_exit(self) -> list[dict]:
         self.bus.emit("emergency_exit", "Emergency exit: selling all positions now.", {"positions": len(self.positions)}, loud=True)
@@ -550,6 +610,7 @@ class TradingEngine:
 
     def status(self) -> dict:
         return {"mandate_id": self.m.mandate_id, "wallet": self.wallet, "spent_usdc": self.spent_usdc,
+                "network": "mainnet" if is_mainnet() else "fork",
                 "cards": [c.public() for c in self.cards.values()],
                 "positions": [{**asdict(p), "mark_usdc": p.mark_usdc(), "pnl_usdc": p.pnl_usdc()} for p in self.positions.values()],
                 "trades": [asdict(r) for r in self.executor.records],

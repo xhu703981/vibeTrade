@@ -77,6 +77,69 @@ settings = Settings()
 
 
 # ---------------------------------------------------------------------------
+# Network: the local Surfpool fork (default) or Solana MAINNET with real funds (explicit opt-in).
+# ---------------------------------------------------------------------------
+MAINNET_GENESIS_HASH = "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d"
+MAINNET_PUBLIC_RPC = "https://api.mainnet-beta.solana.com"
+SOLSCAN_TX = "https://solscan.io/tx/"
+MAINNET_DEFAULT_MAX_TRADE_USD = 5.0
+MAINNET_DEFAULT_MIN_SOL_LAMPORTS = 10_000_000    # 0.01 SOL kept for fees / token-account rent before any buy
+
+
+def network() -> str:
+    """"mainnet" only when VT_NETWORK=mainnet is set explicitly; anything else is the local fork."""
+    return "mainnet" if (os.environ.get("VT_NETWORK") or "").strip().lower() == "mainnet" else "fork"
+
+
+def is_mainnet() -> bool:
+    return network() == "mainnet"
+
+
+def mainnet_rpc_url() -> str:
+    """The mainnet RPC: SOLANA_RPC_URL (full URL or Helius key) or the public endpoint. Never logged."""
+    return normalize_rpc_url(_env("SOLANA_RPC_URL")) or MAINNET_PUBLIC_RPC
+
+
+def trading_rpc_url() -> str:
+    """Where trades are simulated and sent: mainnet in mainnet mode, otherwise the local Surfpool fork."""
+    return mainnet_rpc_url() if is_mainnet() else settings.surfpool_rpc_url
+
+
+def mainnet_max_trade_usd() -> float:
+    """Hard per-trade USD ceiling in mainnet mode (VT_MAINNET_MAX_TRADE_USD, default $5). On top of the mandate; a
+    missing, unparsable or non-positive value falls back to the default (fail closed, never "unlimited")."""
+    v = os.environ.get("VT_MAINNET_MAX_TRADE_USD")
+    try:
+        f = float(v.strip()) if v and v.strip() else MAINNET_DEFAULT_MAX_TRADE_USD
+    except ValueError:
+        f = MAINNET_DEFAULT_MAX_TRADE_USD
+    return f if f > 0 and f == f and f != float("inf") else MAINNET_DEFAULT_MAX_TRADE_USD
+
+
+def mainnet_min_sol_lamports() -> int:
+    v = os.environ.get("VT_MAINNET_MIN_SOL")
+    try:
+        sol = float(v.strip()) if v and v.strip() else None
+    except ValueError:
+        sol = None
+    return int(sol * 1e9) if sol is not None and sol > 0 else MAINNET_DEFAULT_MIN_SOL_LAMPORTS
+
+
+def explorer_tx_url(signature: str | None) -> str | None:
+    """Solscan link for a mainnet signature; None on the fork (fork transactions are not on any public explorer)."""
+    return SOLSCAN_TX + signature if signature and is_mainnet() else None
+
+
+def network_status() -> dict:
+    """Public facts about the network for the UI (never the RPC URL: it may carry an API key)."""
+    if not is_mainnet():
+        return {"network": "fork", "real_funds": False}
+    return {"network": "mainnet", "real_funds": True, "max_trade_usd": mainnet_max_trade_usd(),
+            "min_sol": mainnet_min_sol_lamports() / 1e9, "explorer": "solscan",
+            "rpc": "public" if mainnet_rpc_url() == MAINNET_PUBLIC_RPC else "custom"}
+
+
+# ---------------------------------------------------------------------------
 # Mandate hard rules (M1): the user may only tighten within these bounds, never loosen.
 #   ("max", x)  user value must be <= x      ("min", x)  user value must be >= x
 #   ("must", v) user value must equal v      ("superset", S) user list must contain all of S

@@ -157,6 +157,9 @@ def _has_ladder(pos, ex) -> bool:
 
 
 async def run_price_test(engine, pos, kind: str, rounds: int = MAX_ROUNDS) -> dict:
+    from backend.config import is_mainnet
+    if is_mainnet():
+        raise RuntimeError("price tests are rehearsal-only and never run in mainnet mode")
     assert_local(engine.rpc)
     ex = engine.m.body.exit
     bus = engine.bus

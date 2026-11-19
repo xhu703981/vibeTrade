@@ -82,6 +82,7 @@ class Position:
     offers_made: list[str] = field(default_factory=list)     # de-risking offers already made ("sell_half", "break_even")
     mark_seq: int = 0                         # +1 per live mark (fork clock time can repeat between polls; this cannot)
     rehearsal: str | None = None              # a rehearsal price test is running ("stop_loss" / "take_profit")
+    buys: list[dict] = field(default_factory=list)   # each fill: {sig, usdc, tokens, explorer_url (mainnet Solscan link)}
 
     @property
     def entry_per_token(self) -> float:
@@ -330,14 +331,16 @@ class Listener:
         pos.held_tokens = max(0, min(pos.held_tokens - amount, bal))
         pos.realized_usdc += got
         pos.sell_failures = 0
-        pos.sells.append({"trigger": trigger, "amount": amount, "usdc": got, "sig": rec.signature, "ratio": pos.last_ratio})
+        pos.sells.append({"trigger": trigger, "amount": amount, "usdc": got, "sig": rec.signature, "ratio": pos.last_ratio,
+                          "explorer_url": getattr(rec, "explorer_url", None)})
         if pos.held_tokens <= 0:
             pos.status = "closed"
         pnl = (pos.realized_usdc - pos.entry_usdc) / 1e6
         # a card sell ("manual") is announced once by the engine with the card code; no second line here
         e.bus.emit("trade_executed", "" if trigger == "manual" else _sell_speak(trigger, got, pos, pnl),
                    {"side": "sell", "trigger": trigger, "mint": pos.mint, "symbol": pos.symbol_display, "amount": amount,
-                    "usdc_out": got, "signature": rec.signature, "held_after": pos.held_tokens, "realized_usdc": pos.realized_usdc})
+                    "usdc_out": got, "signature": rec.signature, "explorer_url": getattr(rec, "explorer_url", None),
+                    "held_after": pos.held_tokens, "realized_usdc": pos.realized_usdc})
         return True
 
     def _sell_failed(self, pos: Position, trigger: str, why: str, speak: str | None = None) -> bool:

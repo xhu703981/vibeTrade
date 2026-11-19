@@ -54,7 +54,7 @@ The full demo script is in `docs/M6_voice_demo.md`. Short version (speak English
 
 ## Notes
 
-- All trading happens on the local fork; your mainnet trading wallet is never touched.
+- Rehearsal and `-Mode live` trade only on the local fork; your mainnet trading wallet is never touched. Real-money trading needs `.\scripts\dev.ps1 -Mode mainnet` (see "Mainnet mode" in the README).
 - `.\scripts\dev.ps1 -Mode live` spends real x402 research fees (a few cents each) and asks again before starting. Do not add `-Mode live` when rehearsing.
 - The rehearsal cache currently has full research data only for GATO; the other two coins fail in rehearsal mode. That is expected.
 - The "Test AI agent" button in the ElevenLabs dashboard cannot run these frontend tools; test only through this page.

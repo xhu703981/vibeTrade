@@ -59,8 +59,13 @@ export type Position = {
   coin_number?: number | null;
   ticker?: string | null;
   stop_loss_pct?: number | null;
-  sells: { trigger: string; amount: number; usdc: number; sig: string; ratio: number }[];
+  sells: { trigger: string; amount: number; usdc: number; sig: string; ratio: number; explorer_url?: string | null }[];
+  /** each buy fill; explorer_url is the Solscan link on mainnet (null on the local fork) */
+  buys?: { sig: string | null; usdc: number; tokens: number; explorer_url?: string | null }[];
 };
+
+/** backend config/network_status(): never carries the RPC URL */
+export type NetworkInfo = { network: "fork" | "mainnet"; real_funds: boolean; max_trade_usd?: number; min_sol?: number; explorer?: string; rpc?: string };
 
 export type SpendEntry = { seller: string; amount_usdc: number; status: string; coin_mint: string; reason: string; tx_hash: string | null; ts: number };
 
@@ -123,6 +128,7 @@ export type AppState = {
   round?: number;
   mandate_versions?: number;
   price_test_enabled?: boolean;
+  network?: NetworkInfo;
   /** duplex: background work still running (research round, card building, swaps, the exit) */
   working_on?: string[];
   round_running?: boolean;

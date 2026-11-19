@@ -1,6 +1,9 @@
-"""Send signed transactions to the Surfpool fork, confirm and record them. Stop on failure; never retry.
+"""Send signed transactions, confirm and record them. Stop on failure; never retry.
 
-Only a local RPC (127.0.0.1 / localhost) is allowed: this project never sends transactions to mainnet.
+Default (fork mode): only a local RPC (127.0.0.1 / localhost) is allowed, so nothing ever reaches mainnet.
+Mainnet mode (VT_NETWORK=mainnet, explicit opt-in): only the configured mainnet RPC is allowed and a local RPC is
+refused, so a mainnet session can never silently trade on a fork (or the other way round). Every mainnet record
+carries its signature and a Solscan link.
 """
 from __future__ import annotations
 
@@ -10,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
+from backend.config import explorer_tx_url, is_mainnet, mainnet_rpc_url
 from backend.solana_utils import send_and_confirm
 
 
@@ -17,10 +21,22 @@ class NotForkError(RuntimeError):
     pass
 
 
+def is_local(rpc) -> bool:
+    return urlparse(rpc.url).hostname in ("127.0.0.1", "localhost")
+
+
 def assert_local(rpc) -> None:
-    host = urlparse(rpc.url).hostname
-    if host not in ("127.0.0.1", "localhost"):
+    if not is_local(rpc):
         raise NotForkError("refusing to send: transactions may only go to the local Surfpool fork")
+
+
+def assert_send_allowed(rpc) -> None:
+    """Fork mode: local fork only. Mainnet mode: exactly the configured mainnet RPC, never a local one."""
+    if not is_mainnet():
+        assert_local(rpc)
+        return
+    if is_local(rpc) or rpc.url != mainnet_rpc_url():
+        raise NotForkError("refusing to send: mainnet mode only sends to the configured mainnet RPC")
 
 
 @dataclass
@@ -36,23 +52,32 @@ class TradeRecord:
     received: int | None = None
     spent: int | None = None
     meta: dict = field(default_factory=dict)
+    network: str = "fork"
+    explorer_url: str | None = None   # https://solscan.io/tx/<sig> on mainnet; None on the fork
 
 
 class Executor:
     def __init__(self, rpc, log_path: Path | None = None):
-        assert_local(rpc)
+        assert_send_allowed(rpc)
         self.rpc = rpc
         self.log_path = log_path
         self.records: list[TradeRecord] = []
 
     async def send(self, raw: bytes, kind: str, trigger: str, mint: str, amount_in: int, min_out: int,
                    meta: dict | None = None) -> TradeRecord:
-        assert_local(self.rpc)
+        assert_send_allowed(self.rpc)
+        mainnet = is_mainnet()
         try:
-            sig, err = await send_and_confirm(self.rpc, raw)
+            # mainnet: wait until the blockhash can no longer land (about 60-90 s) instead of the fork's 30 s
+            sig, err = await send_and_confirm(self.rpc, raw, timeout_s=90.0 if mainnet else 30.0)
         except Exception as e:  # noqa: BLE001  the send itself failed: no retry
             sig, err = None, f"send failed: {type(e).__name__}: {str(e)[:150]}"
-        rec = TradeRecord(time.time(), kind, trigger, mint, sig, err, amount_in, min_out, meta=meta or {})
+        rec = TradeRecord(time.time(), kind, trigger, mint, sig, err, amount_in, min_out, meta=meta or {},
+                          network="mainnet" if mainnet else "fork", explorer_url=explorer_tx_url(sig))
+        if mainnet:
+            # signature + link only (never keys or the RPC URL)
+            print(f"[mainnet] {kind} {trigger} {mint[:8]}... sig={sig} {'ERROR ' + err[:80] if err else 'confirmed'} "
+                  f"{rec.explorer_url or ''}", flush=True)
         self.records.append(rec)
         self.save()
         return rec

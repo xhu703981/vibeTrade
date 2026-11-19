@@ -21,6 +21,9 @@ async def main() -> None:
     ap.add_argument("--usdc", type=float, default=50.0)
     ap.add_argument("--rpc", default=settings.surfpool_rpc_url)
     a = ap.parse_args()
+    from backend.config import is_mainnet
+    if is_mainnet():
+        sys.exit("refused: VT_NETWORK=mainnet; fund the mainnet trading wallet with a real transfer (see README)")
     if "127.0.0.1" not in a.rpc and "localhost" not in a.rpc:
         sys.exit("refused: fund_wallets may only point at a local Surfpool")
 

@@ -24,6 +24,14 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 .fig-l { color: var(--slate); font-size: var(--t-xs); }
 .fig-v { color: var(--chalk); font-size: var(--t-md); font-weight: 500; }
 .fig-v.up { color: var(--up); } .fig-v.down { color: var(--down); }
+/* mainnet real-funds badge: the one amber key state in the top bar (text + hairline, no fill, no motion) */
+.net-badge { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2); border: 1px solid var(--amber);
+  border-radius: var(--r-sm); color: var(--amber); font-size: var(--t-xs); font-weight: 600; line-height: calc(var(--s4) + var(--s1));
+  letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
+.net-sep { color: var(--amber); opacity: .7; }
+.order-note.real-funds { color: var(--amber); }
+.tx-link { color: var(--slate); text-decoration: none; }
+.tx-link:hover, .tx-link:focus-visible { color: var(--chalk); text-decoration: underline; }
 .icon { display: inline-grid; place-items: center; width: calc(var(--s6) + var(--s3)); height: calc(var(--s6) + var(--s3)); padding: 0;
   background: transparent; color: var(--slate); border-radius: var(--r-md); }
 .icon:hover, .icon.on { color: var(--chalk); background: var(--raise); }

@@ -4,6 +4,7 @@
 #   scripts/dev.sh            rehearsal mode: discovery replays the latest runs/m3_*.json, research uses the cache only (no real money at all)
 #   scripts/dev.sh --lan      also open the UI to phones on the same Wi-Fi (add --https for the phone microphone: self-signed HTTPS)
 #   scripts/dev.sh live       live mode: live DexScreener discovery + real-money x402 research (Base wallet, capped by the mandate's research budget)
+#   scripts/dev.sh mainnet    MAINNET REAL FUNDS: like live, and approved cards send real Solana mainnet swaps (type MAINNET; $5/trade ceiling)
 #
 # Trading only ever happens on the local Surfpool fork (temporary wallet), never mainnet. Ctrl-C stops backend and frontend (Surfpool keeps running; stop it with scripts/stop_surfpool.sh).
 set -euo pipefail
@@ -13,7 +14,7 @@ for a in "$@"; do
   case "$a" in
     --lan) LAN=1 ;;
     --https) HTTPS=1 ;;
-    live|rehearsal) MODE="$a" ;;
+    live|rehearsal|mainnet) MODE="$a" ;;
     *) echo "unknown option: $a"; exit 2 ;;
   esac
 done
@@ -22,12 +23,19 @@ SCHEME=http; [ "$HTTPS" = 1 ] && SCHEME=https && export VIBE_HTTPS=1
 PY="${PY:-.venv/bin/python}"
 mkdir -p logs
 
-if [ "$MODE" = "live" ]; then
+if [ "$MODE" = "mainnet" ]; then
+  export VT_NETWORK=mainnet VIBE_DISCOVERY=live VIBE_RESEARCH="${VIBE_RESEARCH:-live}"
+  echo "!!! MAINNET REAL FUNDS: every approved card sends a real Solana mainnet swap; ceiling \$${VT_MAINNET_MAX_TRADE_USD:-5} per trade; research=$VIBE_RESEARCH"
+  read -r -p "Continue with real money? Type MAINNET: " ans
+  [ "$ans" = "MAINNET" ] || { echo "cancelled"; exit 1; }
+elif [ "$MODE" = "live" ]; then
+  export VT_NETWORK=fork
   export VIBE_DISCOVERY=live VIBE_RESEARCH=live
   echo "WARNING live mode: paid research spends real USDC from the Base research wallet (at most \$0.08 per coin, never more than the mandate research budget)."
   read -r -p "Continue? Type yes: " ans
   [ "$ans" = "yes" ] || { echo "cancelled"; exit 1; }
 else
+  export VT_NETWORK=fork
   export VIBE_DISCOVERY="${VIBE_DISCOVERY:-replay}" VIBE_RESEARCH="${VIBE_RESEARCH:-cache}"
 fi
 export VIBE_UI_BUTTONS="${VIBE_UI_BUTTONS:-1}"
@@ -35,7 +43,11 @@ export PYTHONUTF8=1 PYTHONIOENCODING=utf-8   # same as dev.ps1: UTF-8 files and 
 echo "mode: discovery=$VIBE_DISCOVERY research=$VIBE_RESEARCH ui_buttons=$VIBE_UI_BUTTONS"
 
 scripts/start_surfpool.sh
-"$PY" scripts/fund_wallets.py --sol 2 --usdc 50
+if [ "$VT_NETWORK" = "mainnet" ]; then
+  "$PY" scripts/mainnet_check.py || { echo "mainnet preflight failed: not starting (nothing was sent)"; exit 1; }
+else
+  "$PY" scripts/fund_wallets.py --sol 2 --usdc 50
+fi
 
 # Fork memory watchdog: warn (never kill: the fork holds the positions) when a Surfpool fork gets big.
 # Restart the forks between long sessions with scripts/stop_surfpool.sh (positions on the fork are lost).

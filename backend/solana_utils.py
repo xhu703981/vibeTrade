@@ -92,6 +92,11 @@ class Rpc:
         return (await self.call("getLatestBlockhash", [{"commitment": "confirmed"}]))["value"]["blockhash"]
 
 
+def _is_local_url(url: str) -> bool:
+    from urllib.parse import urlparse
+    return urlparse(url).hostname in ("127.0.0.1", "localhost")
+
+
 async def sync_fork_clock(fork: "Rpc", upstream_url: str) -> dict:
     """Align the fork clock with the current mainnet slot and time (surfnet_timeTravel absoluteSlotAt).
 
@@ -101,6 +106,10 @@ async def sync_fork_clock(fork: "Rpc", upstream_url: str) -> dict:
     """
     import time
 
+    url = getattr(fork, "url", None)
+    if isinstance(url, str) and not _is_local_url(url):
+        # mainnet mode: the "fork" is mainnet itself; never send surfnet_* cheatcodes to a real RPC
+        return {"synced": False, "skipped": "not a local fork"}
     up = Rpc(upstream_url)
     try:
         mainnet_slot = await up.call("getSlot", [{"commitment": "confirmed"}])
@@ -132,7 +141,10 @@ async def send_and_confirm(rpc: "Rpc", raw: bytes, timeout_s: float = 30.0) -> t
         if st and st.get("confirmationStatus") in ("confirmed", "finalized"):
             return sig, (str(st["err"]) if st.get("err") else None)
         await asyncio.sleep(0.4)
-    return sig, "confirmation timed out"
+    st = (await rpc.call("getSignatureStatuses", [[sig], {"searchTransactionHistory": True}]))["value"][0]
+    if st and st.get("confirmationStatus") in ("confirmed", "finalized"):
+        return sig, (str(st["err"]) if st.get("err") else None)
+    return sig, "confirmation timed out (it may still land: check the signature on the explorer)"
 
 
 async def token_balance(rpc: "Rpc", owner: str, mint: str) -> int:

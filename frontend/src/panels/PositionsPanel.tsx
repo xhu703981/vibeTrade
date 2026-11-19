@@ -21,6 +21,15 @@ export function pnl(p: Position): { value: number | null; realized: number; mark
   return { value, realized, markUsdc };
 }
 
+/** a transaction signature; on mainnet it links to Solscan (the backend only sends https://solscan.io/tx/ links) */
+export function TxRef(props: { sig: string | null | undefined; url?: string | null }) {
+  if (!props.sig) return null;
+  const safe = props.url && props.url.startsWith("https://solscan.io/tx/") ? props.url : null;
+  return safe
+    ? <a className="tx-link" href={safe} target="_blank" rel="noreferrer noopener" title={props.sig}><code>{short(props.sig, 8)}</code> Solscan</a>
+    : <code title={props.sig}>{short(props.sig, 8)}</code>;
+}
+
 export function PositionsPanel(props: {
   positions: Position[];
   onEmergency: () => void;
@@ -49,9 +58,14 @@ export function PositionsPanel(props: {
               {p.feed_down && <span className="tag bad">Price feed down</span>}
               {p.status !== "open" && <span className="tag">{p.status === "closed" ? "Closed" : p.status === "stuck" ? "Cannot sell" : p.status}</span>}
             </div>
+            {(p.buys ?? []).map((b, i) => (
+              <div key={`b${i}`} className="sell">
+                Bought for {usd(b.usdc)}. <TxRef sig={b.sig} url={b.explorer_url} />
+              </div>
+            ))}
             {p.sells.map((s, i) => (
               <div key={i} className="sell">
-                {TRIGGER_LABEL[s.trigger] ?? s.trigger}: sold at {s.ratio != null ? mult(s.ratio) : "\u2013"}, got back {usd(s.usdc)}. <code>{short(s.sig, 8)}</code>
+                {TRIGGER_LABEL[s.trigger] ?? s.trigger}: sold at {s.ratio != null ? mult(s.ratio) : "\u2013"}, got back {usd(s.usdc)}. <TxRef sig={s.sig} url={s.explorer_url} />
               </div>
             ))}
           </div>
