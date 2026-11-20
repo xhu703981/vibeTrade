@@ -1,12 +1,12 @@
 # Vibe Trading
 
-UBC 2026 Hackathon project. Numbers in here come from the code or from runs we actually did. Anything we couldn't back up is marked TODO.
+UBC 2026 Hackathon project. Numbers in here come from the code or from runs we actually did.
 
 ## 1. Summary
 
 Trading meme coins means signing transactions you can't read. And if you give an AI agent a wallet, someone can trick it (say with a prompt injection hidden in token metadata) into draining it. Vibe Trading is a voice-controlled Solana meme-coin trading agent. It pays for its own research over x402 (USDC on Base), and a guard checks every transaction before it gets signed. Nothing is bought until you say "approve" plus the card's two-digit code.
 
-Demo video: TODO: YouTube link.
+Demo video: https://youtu.be/6_1EUfDedNY
 
 We did four real mainnet swaps, links are in section 5. For example the [BONK buy](https://solscan.io/tx/61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA).
 
