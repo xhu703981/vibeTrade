@@ -1,0 +1,250 @@
+{
+  "guard_run_id": "5baac60621294436a758363099752241",
+  "captured_at": 1795112560.4041605,
+  "status": "complete",
+  "transaction_sha256": "d2b27d3034ee9dc984abcb0a3b71b2e4f0696ff0b4149652abb9a906af4c1c87",
+  "tx_bytes_len": 733,
+  "tx_base64_prefix": "AT8qBbGdwa11Hou1QZL4QJ64wREX/w53JYi1sYVOgNLIcUm7ipNeKzDy3vX2",
+  "decoded": [
+    {
+      "index": 0,
+      "program": "ComputeBudget",
+      "instruction": "SetComputeUnitLimit",
+      "allowed": true
+    },
+    {
+      "index": 1,
+      "program": "ComputeBudget",
+      "instruction": "SetComputeUnitPrice",
+      "allowed": true
+    },
+    {
+      "index": 2,
+      "program": "AssociatedTokenAccount",
+      "instruction": "CreateIdempotent",
+      "allowed": true
+    },
+    {
+      "index": 3,
+      "program": "AssociatedTokenAccount",
+      "instruction": "CreateIdempotent",
+      "allowed": true
+    },
+    {
+      "index": 4,
+      "program": "JupiterAggregatorV6",
+      "instruction": "Aggregator instruction bb64facc31c4af14",
+      "allowed": true
+    },
+    {
+      "index": 5,
+      "program": "SPL Token",
+      "instruction": "CloseAccount",
+      "allowed": true
+    },
+    {
+      "index": 6,
+      "program": "SPL Token",
+      "instruction": "Transfer",
+      "allowed": false
+    }
+  ],
+  "lookup_tables": {
+    "tables": 2,
+    "accounts_resolved": 16,
+    "source": "ALT indexes resolved by Guard decode from on-chain lookup tables"
+  },
+  "simulation": {
+    "source": "surfnet_profileTransaction",
+    "scope": "profiled wallet accounts, not total portfolio",
+    "success": true,
+    "error": null,
+    "balances": [
+      {
+        "asset": "USDC",
+        "unit": "base units",
+        "before": 50000000,
+        "after": 49000000,
+        "delta": -1000000,
+        "profiled_accounts": 1
+      },
+      {
+        "asset": "target token",
+        "unit": "base units",
+        "before": 0,
+        "after": 12251789342,
+        "delta": 12251789342,
+        "profiled_accounts": 1
+      },
+      {
+        "asset": "SOL",
+        "unit": "lamports",
+        "before": 2000000000,
+        "after": 1997130513,
+        "delta": -2869487
+      }
+    ]
+  },
+  "rules": [
+    {
+      "name": "Fee payer matches wallet",
+      "result": "pass"
+    },
+    {
+      "name": "Only wallet signs",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 0: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 0: compute instruction allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 1: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 1: compute instruction allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 2: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 2: ATA instruction allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 2: ATA owner is wallet",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 3: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 3: ATA instruction allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 3: ATA owner is wallet",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 4: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 5: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 5: token instruction allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 5: close destination is wallet",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 5: close authority is wallet",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 6: program allowlist",
+      "result": "pass"
+    },
+    {
+      "name": "Instruction 6: token instruction allowlist",
+      "result": "block"
+    },
+    {
+      "name": "Simulation succeeded",
+      "result": "pass"
+    },
+    {
+      "name": "Wallet profile available",
+      "result": "pass"
+    },
+    {
+      "name": "Wallet owner and data unchanged",
+      "result": "pass"
+    },
+    {
+      "name": "Token owner unchanged",
+      "result": "pass"
+    },
+    {
+      "name": "No new or increased delegate",
+      "result": "pass"
+    },
+    {
+      "name": "No foreign close authority",
+      "result": "pass"
+    },
+    {
+      "name": "Token owner unchanged",
+      "result": "pass"
+    },
+    {
+      "name": "No new or increased delegate",
+      "result": "pass"
+    },
+    {
+      "name": "No foreign close authority",
+      "result": "pass"
+    },
+    {
+      "name": "Fee within mandate cap",
+      "result": "pass"
+    },
+    {
+      "name": "Input within budget",
+      "result": "block"
+    },
+    {
+      "name": "Output meets minimum",
+      "result": "pass"
+    },
+    {
+      "name": "SOL reserve maintained",
+      "result": "pass"
+    },
+    {
+      "name": "SOL outflow within fee and rent",
+      "result": "pass"
+    },
+    {
+      "name": "Quoted slippage within cap",
+      "result": "pass"
+    },
+    {
+      "name": "Quoted minimum output",
+      "result": "pass"
+    },
+    {
+      "name": "Price impact within cap",
+      "result": "block"
+    },
+    {
+      "name": "Quote tokens match intent",
+      "result": "pass"
+    },
+    {
+      "name": "Quote input within budget",
+      "result": "pass"
+    }
+  ],
+  "structured_view": null,
+  "structured_json": null,
+  "structured_status": "not_sent",
+  "jev": {
+    "not_asked": "blocked by rules"
+  },
+  "verdict": "block",
+  "errors": []
+}

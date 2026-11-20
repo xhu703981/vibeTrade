@@ -1,0 +1,100 @@
+{
+  "rows": [
+    {
+      "mode": "before",
+      "applied": true,
+      "tool_ms": 1255,
+      "speech_end_to_applied_ms": 2806
+    },
+    {
+      "mode": "after",
+      "applied": true,
+      "tool_ms": 194,
+      "speech_end_to_applied_ms": 1746
+    },
+    {
+      "mode": "before",
+      "applied": true,
+      "tool_ms": 1682,
+      "speech_end_to_applied_ms": 3233
+    },
+    {
+      "mode": "after",
+      "applied": true,
+      "tool_ms": 171,
+      "speech_end_to_applied_ms": 1722
+    },
+    {
+      "mode": "before",
+      "applied": true,
+      "tool_ms": 1275,
+      "speech_end_to_applied_ms": 2827
+    },
+    {
+      "mode": "after",
+      "applied": true,
+      "tool_ms": 135,
+      "speech_end_to_applied_ms": 1687
+    },
+    {
+      "mode": "before",
+      "applied": true,
+      "tool_ms": 1164,
+      "speech_end_to_applied_ms": 2716
+    },
+    {
+      "mode": "after",
+      "applied": true,
+      "tool_ms": 347,
+      "speech_end_to_applied_ms": 1897
+    },
+    {
+      "mode": "before",
+      "applied": true,
+      "tool_ms": 1462,
+      "speech_end_to_applied_ms": 3013
+    },
+    {
+      "mode": "after",
+      "applied": true,
+      "tool_ms": 412,
+      "speech_end_to_applied_ms": 1964
+    }
+  ],
+  "summary": {
+    "before": {
+      "n": 5,
+      "median_speech_end_to_applied_ms": 2827,
+      "median_tool_call_ms": 1275
+    },
+    "after": {
+      "n": 5,
+      "median_speech_end_to_applied_ms": 1746,
+      "median_tool_call_ms": 194
+    }
+  },
+  "shadow": {
+    "heard": 5,
+    "finals": 5,
+    "primed": 5,
+    "matched": 5,
+    "mismatched": 0,
+    "extract": {
+      "primed": 5,
+      "hits": 5,
+      "misses": 8,
+      "expired": 0,
+      "saved_ms": [
+        1064,
+        948,
+        1122,
+        990,
+        1123
+      ]
+    }
+  },
+  "assumed": {
+    "asr_final_s": 0.43,
+    "agent_tool_s": 1.12
+  }
+}

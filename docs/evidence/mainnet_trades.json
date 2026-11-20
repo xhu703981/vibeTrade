@@ -1,0 +1,132 @@
+{
+  "_note": "Real Solana mainnet swaps sent from the box wallet with the repo's mainnet mode (VT_NETWORK=mainnet): Jupiter /swap/v2/build, full Guard with mainnet simulateTransaction (sigVerify), backend.execute.executor.Executor.send, then getTransaction. Buys used JEV as the engine does; sells used the rule layer only, as the listener does. No keys in this file.",
+  "wallet": "2hXDjgGJA5JKnE72RKjPdHTdqbCyMh34ae6jKmoAcxxN",
+  "network": "solana-mainnet",
+  "limits_used": {
+    "slippage_bps": 100,
+    "max_trade_usd": 1.5,
+    "sol_reserve_sol": 0.02,
+    "max_fee_sol": 0.002,
+    "jupiter_maxAccounts": 40
+  },
+  "trades": [
+    {
+      "step": "buy_bonk",
+      "pair": "USDC -> BONK",
+      "guard": {
+        "decision": "allow",
+        "jev_risk": 0.05,
+        "guard_run_id": "ba45aab5060b4125a5c8a2d0e48d9ae9",
+        "simulation": "simulateTransaction"
+      },
+      "signature": "61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA",
+      "solscan": "https://solscan.io/tx/61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA",
+      "slot": 471591328,
+      "block_time_utc": "2026-11-20T03:45:39Z",
+      "confirmation_status": "finalized",
+      "err": null,
+      "amount_in_base_units": 1000000,
+      "quoted_out_base_units": 44376002168,
+      "min_out_base_units": 43932242146,
+      "wallet_token_deltas_base_units": {
+        "BONK": 44376002168,
+        "USDC": -1000000
+      },
+      "wallet_sol_delta_lamports": -1500362,
+      "fee_lamports": 11922
+    },
+    {
+      "step": "sell_bonk",
+      "pair": "BONK -> USDC",
+      "guard": {
+        "decision": "allow",
+        "jev_risk": null,
+        "guard_run_id": "a04c2ab27f8d48fdbd79625bbc7b267e",
+        "simulation": "simulateTransaction"
+      },
+      "signature": "2ZyCXccKBgSibCwGSXx3Ld9apqZea7rwN1ucBqqkRb64MWqDuMS4sNB6bkYPtAhbEuuijJ1xNfnHL1Bqqiq4J9Hv",
+      "solscan": "https://solscan.io/tx/2ZyCXccKBgSibCwGSXx3Ld9apqZea7rwN1ucBqqkRb64MWqDuMS4sNB6bkYPtAhbEuuijJ1xNfnHL1Bqqiq4J9Hv",
+      "slot": 471591445,
+      "block_time_utc": "2026-11-20T03:46:03Z",
+      "confirmation_status": "finalized",
+      "err": null,
+      "amount_in_base_units": 44376002168,
+      "quoted_out_base_units": 999455,
+      "min_out_base_units": 989460,
+      "wallet_token_deltas_base_units": {
+        "USDC": 999055,
+        "BONK": -44376002168
+      },
+      "wallet_sol_delta_lamports": -7322,
+      "fee_lamports": 7322
+    },
+    {
+      "step": "usdc_to_sol",
+      "pair": "USDC -> SOL",
+      "guard": {
+        "decision": "ask_human",
+        "jev_risk": 0.97,
+        "guard_run_id": "dddf5959503f4e84b925a7cb19a33bc8",
+        "simulation": "simulateTransaction"
+      },
+      "sent": false,
+      "amount_in_base_units": 1000000,
+      "reason": "Guard returned ask_human (JEV risk 0.96). Not overridden; not sent."
+    },
+    {
+      "step": "buy_wif",
+      "pair": "USDC -> WIF",
+      "guard": {
+        "decision": "allow",
+        "jev_risk": 0.05,
+        "guard_run_id": "7480dac4ffac4a75a4a8ddbaa60c7a75",
+        "simulation": "simulateTransaction"
+      },
+      "signature": "5k5yRmf2SciFm8KYm7sr8B7x6n3FWMukkKCgsEG9PkaprNggefyS4qrdqZPc2MJjubejaBKaShcT4LjjQew4H6KJ",
+      "solscan": "https://solscan.io/tx/5k5yRmf2SciFm8KYm7sr8B7x6n3FWMukkKCgsEG9PkaprNggefyS4qrdqZPc2MJjubejaBKaShcT4LjjQew4H6KJ",
+      "slot": 471592981,
+      "block_time_utc": "2026-11-20T03:51:33Z",
+      "confirmation_status": "finalized",
+      "err": null,
+      "amount_in_base_units": 1000000,
+      "quoted_out_base_units": 7712799,
+      "min_out_base_units": 7635671,
+      "wallet_token_deltas_base_units": {
+        "USDC": -1000000,
+        "WIF": 7710649
+      },
+      "wallet_sol_delta_lamports": -1494958,
+      "fee_lamports": 6518
+    },
+    {
+      "step": "sell_wif",
+      "pair": "WIF -> USDC",
+      "guard": {
+        "decision": "allow",
+        "jev_risk": null,
+        "guard_run_id": "ad657eefd3bf4cb2aeabac96c542118b",
+        "simulation": "simulateTransaction"
+      },
+      "signature": "6145EpTZTSzKDUfn8uZkzyTPNMEtYqNydAeQL86pKiiTxrvDRzzntqybis9GPQNChN36xGj4s6o6PjZ8yYV4igjs",
+      "solscan": "https://solscan.io/tx/6145EpTZTSzKDUfn8uZkzyTPNMEtYqNydAeQL86pKiiTxrvDRzzntqybis9GPQNChN36xGj4s6o6PjZ8yYV4igjs",
+      "slot": 471593025,
+      "block_time_utc": "2026-11-20T03:51:42Z",
+      "confirmation_status": "finalized",
+      "err": null,
+      "amount_in_base_units": 7710649,
+      "quoted_out_base_units": 998760,
+      "min_out_base_units": 988772,
+      "wallet_token_deltas_base_units": {
+        "USDC": 997953,
+        "WIF": -7710649
+      },
+      "wallet_sol_delta_lamports": -7870,
+      "fee_lamports": 7870
+    }
+  ],
+  "final_balances": {
+    "sol": 0.038317,
+    "usdc": 7.997008,
+    "note": "BONK and WIF token accounts are empty but still open (rent not reclaimed)."
+  }
+}
