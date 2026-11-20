@@ -1,77 +1,66 @@
 # Vibe Trading
 
-UBC 2026 Hackathon project. Numbers in here come from the code or from runs we actually did.
-
-## 1. Summary
-
-Trading meme coins means signing transactions you can't read. And if you give an AI agent a wallet, someone can trick it (say with a prompt injection hidden in token metadata) into draining it. Vibe Trading is a voice-controlled Solana meme-coin trading agent. It pays for its own research over x402 (USDC on Base), and a guard checks every transaction before it gets signed. Nothing is bought until you say "approve" plus the card's two-digit code.
+UBC 2026 Hackathon project. Numbers here come from the code or from runs we actually did.
 
 Demo video: https://youtu.be/6_1EUfDedNY
 
-We did four real mainnet swaps, links are in section 5. For example the [BONK buy](https://solscan.io/tx/61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA).
+## 1. Summary
+
+Trading meme coins means signing transactions you can't read, and an AI agent with a wallet can be tricked (say by a prompt injection in token metadata) into draining it. Vibe Trading is a voice agent that trades Solana meme coins. It pays for its own research over x402 (USDC on Base), a guard checks every transaction before it's signed, and nothing is bought until you say "approve" plus the card's two-digit code. We did four real mainnet swaps, links in section 5.
 
 ## 2. Decision loop
 
-1. Limits, taken only from your own words. Hard rules get checked, then the mandate is frozen and hashed. `backend/mandate/dialogue.py`, `backend/mandate/schema.py`
-2. Discover. Nansen smart-money net flow (paid over x402), with DexScreener as fallback. `backend/discovery/smart_money.py`, `backend/discovery/dexscreener.py`
-3. Free on-chain checks: thresholds, raw mint bytes, LP state, plus a test buy and sell on the scratch fork. `backend/discovery/free_checks.py`, `backend/discovery/sell_sim.py`
-4. Paid x402 research for the top few only. Cheapest seller first, and it stops at the first failure. `backend/research/pipeline.py`, `backend/research/x402_client.py`
-5. Card with a two-digit code, built from a Jupiter build and a v0 transaction we assemble ourselves. `backend/execute/cards.py`, `backend/trade/jupiter.py`
-6. Guard, see section 4. `backend/guard/pipeline.py`
-7. Approval. "approve" plus the code, matched with plain word rules on your transcript (no LLM). `backend/execute/cards.py`, `backend/voice/verify.py`
-8. Execute: re-quote, re-check, sign, send. `backend/execute/engine.py`, `backend/execute/executor.py`
-9. Listener. Stop, take-profit ladder, trailing stop, max hold, liquidity drop, and the de-risk offers. `backend/execute/listener.py`
+```mermaid
+flowchart TD
+  A["You say your limits"] --> B["Mandate frozen and hashed"]
+  B --> C["Discover: Nansen smart money, DexScreener fallback"]
+  C --> D["Free checks + test buy/sell on a scratch fork"]
+  D --> E["Paid x402 research, top 3 only"]
+  E --> F["Card: Jupiter build, our own v0 transaction"]
+  F --> G{"Guard"}
+  G -- block --> X["Dropped"]
+  G -- "allow / ask_human (flagged)" --> H{"You: approve + code"}
+  H -- no --> X
+  H -- yes --> I["Re-quote, guard again, sign, send"]
+  I --> J["Listener: stop, take-profit, trailing stop, max hold"]
+  J -- exit --> K["Sell: guard rules only, no LLM"]
+```
+
+Code: `backend/mandate/`, `backend/discovery/`, `backend/research/`, `backend/execute/cards.py`, `backend/guard/`, `backend/execute/engine.py`, `backend/execute/listener.py`.
 
 ## 3. Limits
 
-The preset is `config/default_mandate.json`, defaults are in `backend/mandate/schema.py`, and the hard caps are `HARD_RULES` in `backend/config.py`. The agent can't change any of these. Only your own words can, and raising a limit needs a spoken "confirm" while lowering one applies right away (`backend/mandate/dialogue.py`).
+The agent can't change these. Only your own words can. Raising a limit needs a spoken "confirm", lowering one applies right away.
 
-| Limit | Default | Enforced in |
-|---|---|---|
-| Total / per trade / daily max loss | $5 / $1 / $2 (hard max $500 / $100 / $500) | mandate, guard `OVER_BUDGET`, `backend/execute/engine.py` |
-| Network fee cap | 0.002 SOL (hard max 0.01) | guard `FEE_CAP` |
-| Research budget | $1.00 per session (hard max $5), top-up needs your approval | `backend/research/budget.py` |
-| x402 sellers | `api.nansen.ai`, `x402.quickintel.io`, `pro-api.coinmarketcap.com`, pay-to, network and price pinned | `backend/config.py`, `backend/research/sellers.py` |
-| Max price per call | $0.10 | `backend/research/x402_client.py` |
-| Buy approval | "approve" + two-digit code, void after 3 failures, 180 s timeout | `backend/execute/cards.py` |
-| Own words only | raw transcript from the browser's `UtteranceStore`, checked on the backend, echoes of the agent rejected | `frontend/src/voice/utterances.ts`, `backend/voice/verify.py` |
-| Slippage / price impact | 300 bps buy, 1000 bps stop-loss sell / 2% | guard `SLIPPAGE`, `PRICE_IMPACT` |
-| ATR stop if you set none | ATR(14) 15-min x 1.75 (or 1-h x 1.5), clamped to 5-25%, fallback 10% | `backend/market/volatility.py` |
-| De-risk offers | +10% sell half, +20% break-even stop (offers only) | `backend/config.py` |
-| Mainnet extras | $5 per-buy ceiling, 0.01 SOL fee reserve, balance re-checked | `backend/execute/engine.py` |
+| Limit | Default |
+|---|---|
+| Total / per trade / daily max loss | $5 / $1 / $2 |
+| Buy approval | "approve" + two-digit code, void after 3 misses or 180 s |
+| Own words only | raw browser transcript checked on the backend, agent echoes rejected |
+| Slippage / price impact | 300 bps / 2% |
+| Research | $1 per session, $0.10 max per call, sellers and prices pinned |
+| Mainnet | $5 per buy, SOL fee reserve kept |
+
+Preset in `config/default_mandate.json`, hard caps in `HARD_RULES` (`backend/config.py`).
 
 ## 4. The guard
 
-`check_transaction` in `backend/guard/pipeline.py`. If decoding or simulation fails for any reason, the trade is blocked.
+`check_transaction` in `backend/guard/pipeline.py`. Any decode or simulation failure blocks.
 
-First we decode the signed bytes and read the lookup tables from the chain (`backend/guard/simulate.py`). Then we simulate. On the fork that's `surfnet_profileTransaction`, on mainnet it's `getMultipleAccounts` plus `simulateTransaction` with sigVerify.
+1. Decode the signed bytes and load lookup tables from chain.
+2. Simulate (`surfnet_profileTransaction` on the fork, `simulateTransaction` with sigVerify on mainnet).
+3. Deterministic rules, default deny, 25 block codes (`PROGRAM_NOT_ALLOWED`, `SOL_OUTFLOW`, `OTHER_TOKEN_DECREASE`, `APPROVE`, `SET_AUTHORITY`...). A block is final.
+4. Only if the rules pass: JEV scores a structured view with role labels, no addresses, no token names. Risk >= 0.5 or any error gives `ask_human`. JEV can only make it stricter.
 
-Then the deterministic rules in `backend/guard/rules.py`. Default deny, 25 block codes (`PROGRAM_NOT_ALLOWED`, `SIGNERS`, `FEE_CAP`, `OVER_BUDGET`, `MIN_OUT`, `SOL_OUTFLOW`, `OTHER_TOKEN_DECREASE`, `APPROVE`, `SET_AUTHORITY` and more). A BLOCK is final and JEV never gets asked.
+Real allow: card 14, 36 rules passed, JEV 0.12 (`docs/evidence/normal-same-run-guard.json`). Injection test: with `VIBE_REDTEAM=1` a test coin's metadata gets a naive builder to append a USDC transfer to the attacker. The rules blocked it before JEV (`docs/evidence/blocked-same-run-guard.json`).
 
-Only if the rules allow do we build a structured view for JEV (`backend/guard/semantic.py`, called through OpenRouter in `backend/judge/jev.py`). It uses role labels, no addresses and no token names. Risk = 1 - P(safe). Risk of 0.5 or more, or any error, turns into `ask_human`. JEV can only make things stricter.
-
-Here's a real one, card 14, Guard run `4a808a2fde084e5ca2b97dd58e3c8332`. 36 rules passed, JEV risk 0.12, allow. From `docs/evidence/normal-same-run-guard.json`:
-
-```json
-{"mandate_allows": {"side": "buy", "input": "USDC (input)", "output": "target token (output)",
-  "max_input_amount": 500000, "min_output_amount": 497032963, "max_fee_lamports": 2000000},
- "simulated_effects_on_user_wallet": {"input_spent": 500000, "output_received": 512404810,
-  "other_token_changes": {}, "network_fee_within_max_fee": true,
-  "sol_leaving_wallet_beyond_fee_and_refundable_rent": false, "token_account_authority_or_delegate_changes": []},
- "top_level_programs": ["ComputeBudget", "ComputeBudget", "AssociatedTokenAccount", "AssociatedTokenAccount",
-  "JupiterAggregatorV6", "SPL Token"],
- "inner_programs_invoked_by_aggregator": ["JupiterAggregatorV6", "SPL Token", "System", "Token-2022", "1 AMM programs"]}
-```
-
-Injection test: with `VIBE_REDTEAM=1` there's a test coin whose metadata (`config/redteam_token.json`) gets a modelled naive builder (`backend/copilot/redteam.py`) to append a USDC transfer to the attacker. The rules blocked it and JEV was never asked. That's Guard run `5baac606…`, in `docs/evidence/blocked-same-run-guard.json`.
-
-JEV scores we actually measured. Card 14 above was 0.12. The `runs/m6_smoke_*.json` files (14 of them have a score, they're local and gitignored like the rest of `runs/`) were 0.04-0.08 on normal buys. `runs/m5_20261110_153206.json` and `runs/m5_20261110_153023.json` were 0.07-0.36, all allow. Earlier, in `runs/m5_20261110_152831.json`, normal buys got 0.64-0.75 and `ask_human`. Those were false positives from before we fixed the view. On mainnet (`docs/evidence/mainnet_trades.json`) the BONK and WIF buys both scored 0.05. A USDC to native SOL swap got 0.96 and `ask_human`, so we didn't send it.
+Known gap: a swap into native SOL scores 0.96 and gets `ask_human`, because the view shows 0 output for native SOL.
 
 ## 5. Solana
 
-Swaps go through Jupiter `GET /swap/v2/build`. We assemble the v0 transaction ourselves and fetch the lookup tables from the chain instead of trusting Jupiter's mapping (`backend/trade/jupiter.py`). Mints get SPL and Token-2022 checks in `backend/discovery/free_checks.py`. The output account is made with ATA `Create` / `CreateIdempotent`, and the owner has to be the user. We don't deploy any programs of our own.
+Swaps use Jupiter `GET /swap/v2/build`. We build the v0 transaction ourselves and read lookup tables from chain instead of trusting Jupiter's mapping (`backend/trade/jupiter.py`). No programs of our own.
 
-The guard's top-level allowlist (`backend/guard/rules.py`):
+Guard allowlist:
 
 | Program | ID |
 |---|---|
@@ -82,38 +71,22 @@ The guard's top-level allowlist (`backend/guard/rules.py`):
 | Compute Budget | `ComputeBudget111111111111111111111111111111` |
 | System | `11111111111111111111111111111111` |
 
-Discovery also looks at PumpSwap `pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA` and Raydium CPMM `CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C` pools.
+Most testing was on a Surfpool fork (95 swaps). Then four real mainnet swaps from wallet `2hXDjgGJA5JKnE72RKjPdHTdqbCyMh34ae6jKmoAcxxN`, run by a script through the repo's Jupiter build, full guard and `Executor.send`, not the voice UI (`docs/evidence/mainnet_trades.json`):
 
-To be honest about the network: most of our trading was on a Surfpool fork. That's 95 swaps (46 buys, 49 sells, `runs/m5_trades_*.json`, `runs/m6_trades_*.json`) on :8899, with test buys on :8999.
-
-Then we did four real mainnet swaps from a box wallet, `2hXDjgGJA5JKnE72RKjPdHTdqbCyMh34ae6jKmoAcxxN`, in mainnet mode. They didn't go through the voice UI. A script called the repo's Jupiter build, the full guard and `Executor.send` (`backend/execute/executor.py`). Settings were 1% slippage, a 0.02 SOL reserve and `maxAccounts=40`. All four are finalized, details in `docs/evidence/mainnet_trades.json`.
-
-| Pair | In | Out | Guard | Slot | Solscan |
-|---|---|---|---|---|---|
-| USDC to BONK | 1.000000 USDC | 443,760.02 BONK | allow, JEV 0.05 | 471591328 | [61e5RnZD…](https://solscan.io/tx/61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA) |
-| BONK to USDC | 443,760.02 BONK | 0.999055 USDC | allow (rules only, same as listener sells) | 471591445 | [2ZyCXccK…](https://solscan.io/tx/2ZyCXccKBgSibCwGSXx3Ld9apqZea7rwN1ucBqqkRb64MWqDuMS4sNB6bkYPtAhbEuuijJ1xNfnHL1Bqqiq4J9Hv) |
-| USDC to WIF | 1.000000 USDC | 7.710649 WIF | allow, JEV 0.05 | 471592981 | [5k5yRmf2…](https://solscan.io/tx/5k5yRmf2SciFm8KYm7sr8B7x6n3FWMukkKCgsEG9PkaprNggefyS4qrdqZPc2MJjubejaBKaShcT4LjjQew4H6KJ) |
-| WIF to USDC | 7.710649 WIF | 0.997953 USDC | allow (rules only) | 471593025 | [6145EpTZ…](https://solscan.io/tx/6145EpTZTSzKDUfn8uZkzyTPNMEtYqNydAeQL86pKiiTxrvDRzzntqybis9GPQNChN36xGj4s6o6PjZ8yYV4igjs) |
+| Pair | In | Out | Guard | Solscan |
+|---|---|---|---|---|
+| USDC to BONK | 1 USDC | 443,760.02 BONK | allow, JEV 0.05 | [61e5RnZD…](https://solscan.io/tx/61e5RnZD756DzYWKSP1oVM1FCTMddKdgwcJTnnmsYYe4tcGMbpV3vXiwnFJ5yMsXami7uDLg3gkqemaqoZ4J4CYA) |
+| BONK to USDC | 443,760.02 BONK | 0.999055 USDC | allow (rules only) | [2ZyCXccK…](https://solscan.io/tx/2ZyCXccKBgSibCwGSXx3Ld9apqZea7rwN1ucBqqkRb64MWqDuMS4sNB6bkYPtAhbEuuijJ1xNfnHL1Bqqiq4J9Hv) |
+| USDC to WIF | 1 USDC | 7.710649 WIF | allow, JEV 0.05 | [5k5yRmf2…](https://solscan.io/tx/5k5yRmf2SciFm8KYm7sr8B7x6n3FWMukkKCgsEG9PkaprNggefyS4qrdqZPc2MJjubejaBKaShcT4LjjQew4H6KJ) |
+| WIF to USDC | 7.710649 WIF | 0.997953 USDC | allow (rules only) | [6145EpTZ…](https://solscan.io/tx/6145EpTZTSzKDUfn8uZkzyTPNMEtYqNydAeQL86pKiiTxrvDRzzntqybis9GPQNChN36xGj4s6o6PjZ8yYV4igjs) |
 
 ## 6. x402 payments
 
-Sellers and prices per call: Nansen smart money $0.05 (discovery net flow), Nansen holders $0.05 (top-10 holder share), Quick Intel scan $0.03 (dev address, scam flags). CoinMarketCap DEX search at $0.01 is registered as a cross-check but never got paid in our runs.
-
-Everything is USDC on Base (`eip155:8453`). The client refuses a 402 challenge if the network, asset, pay-to or price doesn't match `backend/research/sellers.py`, or if it's over $0.10. After paying, `verify_transfer` (`backend/research/x402_client.py`) wants a successful receipt with a USDC `Transfer` log from the payer to `pay_to` for the right amount.
-
-We have 17 settled payments, $0.67 total. Two of them: Quick Intel [0x8fa7b14f…](https://basescan.org/tx/0x8fa7b14f5b12011ed0b5126bd9e975cf5eedbebf849d08d21cceecf8ba756efc) and Nansen [0x354c2cee…](https://basescan.org/tx/0x354c2cee917369b622401392e53a905a1c6ea31e5b0c7061ad06f142021c63c1). The full list is in `docs/evidence/x402_payments.md`. Rehearsal mode never pays (`docs/rehearsal.md`).
+Nansen smart money $0.05, Nansen holders $0.05, Quick Intel scan $0.03, all USDC on Base. The client refuses a 402 if network, asset, pay-to or price doesn't match `backend/research/sellers.py`, and after paying checks the USDC `Transfer` log on chain. 17 settled payments, $0.67 total, e.g. [0x8fa7b14f…](https://basescan.org/tx/0x8fa7b14f5b12011ed0b5126bd9e975cf5eedbebf849d08d21cceecf8ba756efc). Full list: `docs/evidence/x402_payments.md`.
 
 ## 7. ElevenLabs
 
-The whole interface is an ElevenLabs Agents (Conversational AI) Realtime session. Model `eleven_realtime_v1_max`, interruptions on, turn eagerness "patient", speculative turn off, no idle re-engagement (`backend/voice/agent_config.py`).
-
-It has 14 client tools that run in the browser (`frontend/src/voice/tools.ts`): `submit_mandate_fields`, `confirm_mandate`, `respond_to_card`, `respond_to_topup`, `place_orders`, `suggest_stop`, `cancel_settings_change`, `skip_coins`, `stop_research`, `simulate_price_move`, `get_status`, `emergency_exit`, `manage_position`, `skip_turn`.
-
-Auth is a signed URL from `GET /voice/signed-url` (`backend/app.py`), so the API key never leaves the backend. Backend events reach the agent with `sendUserMessage`, through a broadcast queue in `frontend/src/voice/broadcast.ts`. There's a wake word too. When idle it only answers to "Vibe", and side talk gets `skip_turn` (`frontend/src/voice/engagement.ts`).
-
-The shadow listener (`frontend/src/voice/shadow.ts`, `backend/voice/shadow.py`) is a bit hacky. It grabs a spoken filter change from the transcript before the agent's tool call even arrives. Median time went from 2,827 ms to 1,746 ms (2.8 s to 1.7 s), 5 trials each (`docs/evidence/shadow_latency_20261111_164021.json`, `scripts/shadow_latency.py`).
-
-I did the demo video narration with ElevenLabs TTS. `scripts/partials_probe.py` uses TTS as well.
+The whole UI is one ElevenLabs Agents session on `eleven_realtime_v1_max` with 14 client tools in the browser (`frontend/src/voice/tools.ts`). The API key stays on the backend (signed URL). When idle it only answers to "Vibe", side talk is skipped (`frontend/src/voice/engagement.ts`). A shadow listener reads filter changes from the live transcript before the tool call lands: median 2.8 s to 1.7 s (`docs/evidence/shadow_latency_20261111_164021.json`).
 
 ## 8. Architecture
 
@@ -127,33 +100,18 @@ Browser (Vite + React)         FastAPI backend                    Outside
                                +---------------------------+      +--------------------------------------+
 ```
 
-Where things live:
-
-- `backend/app.py`, `backend/orchestrator.py`, `backend/events.py`: API, signed URL, the session loop, event bus
-- `backend/mandate/`: limit schema, dialogue, hard rules
-- `backend/discovery/` and `backend/market/`: smart money, DexScreener, free checks, sell test, GeckoTerminal ATR stop
-- `backend/research/`: x402 client, sellers, budget ledger, cache
-- `backend/trade/` and `backend/execute/`: Jupiter build and v0 assembly, then cards, executor, listener
-- `backend/guard/`: decode, simulate, rules, JEV view, evidence
-- `backend/judge/`: JEV and LLM calls (OpenRouter)
-- `backend/voice/`, `frontend/src/voice/`: agent config, transcript checks, engagement, shadow listener, tools
+Duplex: you can keep talking while it works. Tools return in under a second; research, card simulation, buys and the emergency exit run as background tasks (`backend/orchestrator.py`) and the result comes back to the agent as a system update. You can interrupt any time, change filters mid-research (the old round stops, no new payment starts) or say "stop the research". Updates wait while you're speaking, urgent ones at most 4 s (`frontend/src/voice/broadcast.ts`). Approvals are still checked against your words and the code before anything runs.
 
 ## 9. Setup
 
-You need Windows 10/11 or Linux, Python 3.11+ (we ran the tests on 3.11), Node.js 20+ and Surfpool 1.7.0.
-
-Variables in `.env.example` are `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `JUPITER_API_KEY`, `SOLANA_RPC_URL`, `SURFPOOL_RPC_URL`, `SCRATCH_SURFPOOL_RPC_URL`, `LLM_API_KEY`, `JEV_API_KEY`, `TRADING_WALLET_KEYPAIR_PATH`, `RESEARCH_WALLET_KEYPAIR_PATH`, `BASE_RESEARCH_WALLET_PRIVATE_KEY`. Optional ones: `VIBE_DISCOVERY`, `VIBE_RESEARCH`, `VIBE_UI_BUTTONS`, `VIBE_REDTEAM`, `VT_NETWORK`, `VT_MAINNET_MAX_TRADE_USD`, `VT_MAINNET_MIN_SOL`. `.env`, `secrets/`, keypairs and `runs/` are gitignored. Please don't commit real keys.
+Windows 10/11 or Linux, Python 3.11+, Node.js 20+, Surfpool 1.7.0. Fill in `.env` from `.env.example`. `.env`, `secrets/`, keypairs and `runs/` are gitignored, don't commit keys.
 
 ```powershell
-copy .env.example .env; .\scripts\dev.ps1 -Setup   # venv, npm packages, Surfpool binary
-.\scripts\dev.ps1                 # rehearsal: replayed discovery, cached research, local fork, no money
-.\scripts\dev.ps1 -Mode live      # paid x402 research, trading still on the fork
-.\scripts\dev.ps1 -Mode mainnet   # real funds; type MAINNET to continue
-.\scripts\stop_dev.ps1            # stop (.\scripts\stop_surfpool.ps1 for the forks)
+copy .env.example .env; .\scripts\dev.ps1 -Setup
+.\scripts\dev.ps1                 # rehearsal: replayed data, local fork, no money
+.\scripts\dev.ps1 -Mode live      # paid x402 research, trades on the fork
+.\scripts\dev.ps1 -Mode mainnet   # real funds, type MAINNET to continue
+.\scripts\stop_dev.ps1
 ```
 
-On Linux `scripts/dev.sh` does all of it. By hand it's `scripts/start_surfpool.sh`, `python scripts/fund_wallets.py`, `python -m uvicorn backend.app:app --port 8000`, then `cd frontend && npx vite --port 5173`. More detail in `docs/run_on_your_pc.md`.
-
-For the red-team demo set `VIBE_REDTEAM=1`, start rehearsal mode and order the extra test coin. Its card gets blocked.
-
-Mainnet preflight is `python scripts/mainnet_check.py --sim 1` (read-only). Tests: `python -m pytest -q -m "not live"` (499 passed) and `cd frontend && npm test -- --run` (102 passed).
+Linux: `scripts/dev.sh`. More in `docs/run_on_your_pc.md`. Tests: `python -m pytest -q -m "not live"` (499 passed), `cd frontend && npm test -- --run` (102 passed).
